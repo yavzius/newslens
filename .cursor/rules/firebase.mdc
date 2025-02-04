@@ -1,0 +1,130 @@
+---
+description: Firebase configuration and best practices for iOS development. Includes security rules, code patterns, and implementation guidelines for Firebase services including Authentication, Firestore, Storage, and Cloud Functions.
+globs: *.swift,GoogleService-Info.plist,*.rules,functions/*
+---
+
+# Firebase Configuration and Guidelines
+This rule provides guidelines and best practices for Firebase integration in the project.
+
+## Rule Patterns
+- `*.plist`: Firebase configuration files
+- `*.rules`: Firebase security rules files
+- `functions/*`: Firebase Cloud Functions
+- `*.swift`: Files containing Firebase SDK usage
+
+## Configuration Guidelines
+
+### Firebase Setup
+1. Ensure GoogleService-Info.plist is properly configured
+2. Keep Firebase SDK versions up to date
+3. Initialize Firebase in your app delegate or main entry point
+
+### Security Rules
+
+#### Firestore Rules
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+```
+
+#### Storage Rules
+```
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+```
+
+### Best Practices
+
+#### Authentication
+- Implement proper sign-in/sign-up flows
+- Use Firebase Auth for user management
+- Handle authentication state changes appropriately
+- Store user tokens securely
+
+#### Cloud Functions
+- Use HTTPS callable functions
+- Validate all incoming data
+- Implement proper error handling
+- Use TypeScript for better type safety
+- Test functions locally before deployment
+
+#### Security
+- Never expose API keys in public code
+- Use App Check in production
+- Regularly review security rules
+- Implement proper data validation
+- Use security rules to protect data access
+
+#### Development
+- Enable debug logging in development
+- Use Firebase Local Emulator Suite for testing
+- Keep separate dev/prod environments
+- Monitor Firebase Console for issues
+
+## Common Code Patterns
+
+### Swift Firebase Initialization
+```swift
+import Firebase
+
+class AppDelegate: UIResponder, UIApplicationDelegate {
+    func application(_ application: UIApplication,
+                    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        FirebaseApp.configure()
+        return true
+    }
+}
+```
+
+### Authentication Check
+```swift
+if Auth.auth().currentUser != nil {
+    // User is signed in
+} else {
+    // No user is signed in
+}
+```
+
+### Firestore Operations
+```swift
+let db = Firestore.firestore()
+
+// Read data
+db.collection("collection").document("document").getDocument { (document, error) in
+    if let document = document, document.exists {
+        let data = document.data()
+    }
+}
+
+// Write data
+db.collection("collection").document("document").setData([
+    "field": "value"
+]) { err in
+    if let err = err {
+        print("Error writing document: \(err)")
+    }
+}
+```
+
+## Error Messages
+- "Firebase not properly initialized": Check GoogleService-Info.plist configuration
+- "Permission denied": Review Firebase security rules
+- "Invalid API key": Verify Firebase configuration
+- "User not authenticated": Ensure proper authentication flow
+
+## Links
+- [Firebase iOS Documentation](mdc:https:/firebase.google.com/docs/ios/setup)
+- [Firebase Console](mdc:https:/console.firebase.google.com)
+- [Security Rules Reference](mdc:https:/firebase.google.com/docs/rules)
