@@ -9,6 +9,7 @@ import PhotosUI
 final class MovieCapture: NSObject, @unchecked Sendable {
     private let movieOutput = AVCaptureMovieFileOutput()
     private var currentDelegate: MovieCaptureDelegate?
+    private var isStartingRecording = false
     
     var isRecording: Bool {
         movieOutput.isRecording
@@ -38,21 +39,29 @@ final class MovieCapture: NSObject, @unchecked Sendable {
     }
     
     func startRecording() async throws -> URL {
-        // Create a unique file URL in the temporary directory
+        guard !isStartingRecording && !isRecording else {
+            throw NSError(domain: "MovieCapture", code: 7, userInfo: [NSLocalizedDescriptionKey: "Recording operation in progress"])
+        }
+        
+        isStartingRecording = true
+        defer { isStartingRecording = false }
+        
         let outputURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).mp4")
         
         return try await withCheckedThrowingContinuation { continuation in
-            do {
-                // Create new delegate and retain it
-                let newDelegate = MovieCaptureDelegate(continuation: continuation)
-                currentDelegate = newDelegate
-                
-                // Start recording with the delegate
-                movieOutput.startRecording(to: outputURL, recordingDelegate: newDelegate)
-            } catch {
-                currentDelegate = nil
-                continuation.resume(throwing: error)
+            let newDelegate = MovieCaptureDelegate()
+            currentDelegate = newDelegate
+            
+            newDelegate.startRecording { result in
+                switch result {
+                case .success(let url):
+                    continuation.resume(returning: url)
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
             }
+            
+            movieOutput.startRecording(to: outputURL, recordingDelegate: newDelegate)
         }
     }
     
@@ -67,8 +76,15 @@ final class MovieCapture: NSObject, @unchecked Sendable {
                 return
             }
             
-            // Update the continuation for the existing delegate
-            delegate.continuation = continuation
+            delegate.recordingCompletion = { result in
+                switch result {
+                case .success(let url):
+                    continuation.resume(returning: url)
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+            }
+            
             movieOutput.stopRecording()
         }
     }
@@ -82,49 +98,24 @@ final class MovieCapture: NSObject, @unchecked Sendable {
 }
 
 private class MovieCaptureDelegate: NSObject, AVCaptureFileOutputRecordingDelegate {
-    var continuation: CheckedContinuation<URL, Error>
+    var recordingCompletion: ((Result<URL, Error>) -> Void)?
     
-    init(continuation: CheckedContinuation<URL, Error>) {
-        self.continuation = continuation
-        super.init()
+    func startRecording(completion: @escaping (Result<URL, Error>) -> Void) {
+        recordingCompletion = completion
     }
     
     func fileOutput(_ output: AVCaptureFileOutput, didFinishRecordingTo outputFileURL: URL, from connections: [AVCaptureConnection], error: Error?) {
-        // Ensure we only resume the continuation once
-        defer {
-            // Clean up by removing the reference to self
-            if let movieOutput = output as? AVCaptureMovieFileOutput {
-                // Instead of accessing delegate directly, we'll just stop recording if needed
-                if movieOutput.isRecording {
-                    movieOutput.stopRecording()
-                }
-            }
-        }
-        
         if let error = error {
-            continuation.resume(throwing: error)
+            recordingCompletion?(.failure(error))
             return
         }
         
-        // Verify the recorded file exists and has content
         if FileManager.default.fileExists(atPath: outputFileURL.path) {
-            do {
-                let attributes = try FileManager.default.attributesOfItem(atPath: outputFileURL.path)
-                if let size = attributes[.size] as? UInt64, size > 0 {
-                    continuation.resume(returning: outputFileURL)
-                } else {
-                    continuation.resume(throwing: NSError(domain: "MovieCapture", code: 2, userInfo: [NSLocalizedDescriptionKey: "Empty recording file"]))
-                }
-            } catch {
-                continuation.resume(throwing: error)
-            }
+            recordingCompletion?(.success(outputFileURL))
         } else {
-            continuation.resume(throwing: NSError(domain: "MovieCapture", code: 3, userInfo: [NSLocalizedDescriptionKey: "Recording file not found"]))
+            recordingCompletion?(.failure(NSError(domain: "MovieCapture", code: 3, userInfo: [NSLocalizedDescriptionKey: "Recording file not found"])))
         }
-    }
-    
-    func cleanUp() {
-        // Clean up any resources if needed
+        recordingCompletion = nil
     }
 }
 
@@ -249,17 +240,24 @@ final class CameraManager: ObservableObject {
     @MainActor
     func stopRecording() {
         print("📸 CameraManager: Stopping recording...")
-        guard isRecording else {
-            print("📸 CameraManager: Warning - Not recording")
-            return
-        }
-        
         Task {
             do {
                 let outputURL = try await movieCapture.stopRecording()
                 isRecording = false
                 stopRecordingTimer()
                 capturedMedia = outputURL
+                
+                // Create video clip and show editor
+                let clip = VideoClip(
+                    id: UUID().uuidString,
+                    url: outputURL,
+                    startTime: .zero,
+                    endTime: .indefinite,
+                    adjustments: VideoAdjustments(),
+                    order: 0
+                )
+                currentVideoClip = clip
+                showVideoEditor = true
             } catch {
                 print("📸 CameraManager: Error stopping recording - \(error.localizedDescription)")
                 isRecording = false
@@ -435,7 +433,6 @@ struct NewContentView: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var isPresented: Bool
     @StateObject private var cameraManager = CameraManager()
-    @State private var showVideoEditor = false
     @State private var recordingDuration: TimeInterval = 0
     @State private var recordingTimer: Timer?
     
@@ -515,7 +512,7 @@ struct NewContentView: View {
                 }
             }
             .navigationBarHidden(true)
-            .navigationDestination(isPresented: $showVideoEditor) {
+            .navigationDestination(isPresented: $cameraManager.showVideoEditor) {
                 if let clip = cameraManager.currentVideoClip {
                     VideoEditorView(clip: clip)
                         .navigationBarBackButtonHidden(true)
@@ -534,7 +531,7 @@ struct NewContentView: View {
                 }
             }
             .onDisappear {
-                if !showVideoEditor {
+                if !cameraManager.showVideoEditor {
                     cameraManager.cleanup()
                 }
             }
