@@ -11,6 +11,8 @@ class AppDelegate: NSObject, UIApplicationDelegate {
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         // Setup network monitoring
         setupNetworkMonitoring()
+
+        FirebaseApp.configure()
         
         return true
     }
