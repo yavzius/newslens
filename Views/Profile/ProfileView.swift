@@ -3,13 +3,14 @@ import Firebase
 import FirebaseAuth
 import FirebaseFirestore
 import PhotosUI
+
 struct ProfileView: View {
     @StateObject private var viewModel = ProfileViewModel()
     @EnvironmentObject var authManager: AuthManager
-
     @State private var showPhotoPicker = false
-     @State private var selectedImageItem: PhotosPickerItem?
+    @State private var selectedImageItem: PhotosPickerItem?
     @State private var isUploading = false
+    @State private var appearAnimation = false
     
     private let gridItems: [GridItem] = [
         GridItem(.flexible(), spacing: 1),
@@ -17,98 +18,153 @@ struct ProfileView: View {
         GridItem(.flexible(), spacing: 1)
     ]
     
+    // NewsLens brand colors - professional, trustworthy, and modern
+    private let gradientColors = [
+        Color(red: 0.95, green: 0.95, blue: 0.97), // Light background
+        Color(red: 0.98, green: 0.98, blue: 1.0)   // Subtle variation
+    ]
+    
     var body: some View {
         ScrollView {
-            VStack(spacing: 40) {
+            VStack(spacing: 32) {
                 // Profile Header
-                HStack(spacing: 16) {
+                VStack(spacing: 24) {
                     // Profile Image
-                     ZStack {
+                    ZStack {
                         if let photoURL = authManager.user?.photoURL {
-                            AsyncImage(url: photoURL) { image in
-                                image
-                                    .resizable()
-                                    .scaledToFill()
-                            } placeholder: {
-                                ProgressView()
+                            AsyncImage(url: photoURL) { phase in
+                                switch phase {
+                                case .empty:
+                                    ProgressView()
+                                        .tint(Color(red: 0.2, green: 0.2, blue: 0.3))
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .scaledToFill()
+                                        .transition(.opacity.combined(with: .scale))
+                                case .failure(_):
+                                    Image(systemName: "person.circle.fill")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .foregroundColor(Color(red: 0.2, green: 0.2, blue: 0.3))
+                                @unknown default:
+                                    EmptyView()
+                                }
                             }
-                            .frame(width: 80, height: 80)
+                            .frame(width: 100, height: 100)
                             .clipShape(Circle())
+                            .overlay(
+                                Circle()
+                                    .stroke(Color(red: 0.2, green: 0.2, blue: 0.3).opacity(0.1), lineWidth: 1)
+                            )
+                            .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
                         } else {
                             Image(systemName: "person.circle.fill")
                                 .resizable()
                                 .scaledToFit()
-                                .frame(width: 80, height: 80)
-                                .foregroundColor(.gray)
+                                .frame(width: 100, height: 100)
+                                .foregroundColor(Color(red: 0.2, green: 0.2, blue: 0.3))
                         }
                         
                         // Show progress if uploading
                         if isUploading {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                .scaleEffect(1.5)
+                            ZStack {
+                                Circle()
+                                    .fill(Color.white.opacity(0.9))
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: Color(red: 0.2, green: 0.2, blue: 0.3)))
+                            }
+                            .transition(.opacity)
                         }
                     }
-                    .frame(width: 80, height: 80)
+                    .frame(width: 100, height: 100)
                     .onTapGesture {
-                        showPhotoPicker = true
-                    }
-                    .photosPicker(
-                        isPresented: $showPhotoPicker,
-                        selection: $selectedImageItem,
-                        matching: .images
-                    )
-                    .onChange(of: selectedImageItem) {
-                        Task {
-                            await loadAndUploadImage()
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            showPhotoPicker = true
                         }
                     }
                     
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(spacing: 8) {
                         // Show displayName from profile
                         Text(viewModel.profile?.displayName ?? "User")
-                            .font(.headline)
+                            .font(.title2)
+                            .fontWeight(.semibold)
+                            .foregroundColor(Color(red: 0.2, green: 0.2, blue: 0.3))
 
-                        // Show user’s email
+                        // Show user's email
                         if let userEmail = authManager.user?.email {
                             Text(userEmail)
                                 .font(.subheadline)
-                                .foregroundColor(.gray)
+                                .foregroundColor(Color(red: 0.2, green: 0.2, blue: 0.3).opacity(0.7))
                         }
                     }
-                    .padding(.horizontal)
                 }
+                .offset(y: appearAnimation ? 0 : 30)
+                .opacity(appearAnimation ? 1 : 0)
     
-               
-                
                 // Stats View
                 HStack(spacing: 0) {
                     StatView(value: "6", title: "Following")
+                    Divider()
+                        .frame(height: 24)
+                        .background(Color(red: 0.2, green: 0.2, blue: 0.3).opacity(0.1))
                     StatView(value: "203", title: "Followers")
+                    Divider()
+                        .frame(height: 24)
+                        .background(Color(red: 0.2, green: 0.2, blue: 0.3).opacity(0.1))
                     StatView(value: "4", title: "Likes")
                 }
-                .padding(.vertical, 8)
-                .cornerRadius(10)
+                .padding(.vertical, 16)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color.white)
+                        .shadow(color: Color.black.opacity(0.05), radius: 15, x: 0, y: 5)
+                )
                 .padding(.horizontal)
-                
-                // // Liked Posts Grid
-                // if !viewModel.likedPosts.isEmpty {
-                //     LazyVGrid(columns: gridItems, spacing: 1) {
-                //         ForEach(viewModel.likedPosts) { post in
-                //             PostGridItem(post: post)
-                //                 .frame(height: 120)
-                //         }
-                //     }
-                // } else {
-                //     Text("No liked posts yet")
-                //         .foregroundColor(.gray)
-                //         .padding(.top, 40)
-                // }
+                .offset(y: appearAnimation ? 0 : 20)
+                .opacity(appearAnimation ? 1 : 0)
             }
             .padding(.vertical, 20)
         }
+        .photosPicker(
+            isPresented: $showPhotoPicker,
+            selection: $selectedImageItem,
+            matching: .images
+        )
+        .onChange(of: selectedImageItem) {
+            Task {
+                await loadAndUploadImage()
+            }
+        }
+        .background(
+            ZStack {
+                LinearGradient(gradient: Gradient(colors: gradientColors),
+                             startPoint: .top,
+                             endPoint: .bottom)
+                    .ignoresSafeArea()
+                
+                // Subtle pattern overlay
+                GeometryReader { geometry in
+                    Path { path in
+                        let width = geometry.size.width
+                        let height = geometry.size.height
+                        let spacing: CGFloat = 40
+                        
+                        for x in stride(from: 0, through: width, by: spacing) {
+                            for y in stride(from: 0, through: height, by: spacing) {
+                                path.addEllipse(in: CGRect(x: x, y: y, width: 2, height: 2))
+                            }
+                        }
+                    }
+                    .fill(Color(red: 0.2, green: 0.2, blue: 0.3).opacity(0.03))
+                }
+            }
+        )
         .task {
             await viewModel.loadCurrentUserData()
+            withAnimation(.easeOut(duration: 0.6)) {
+                appearAnimation = true
+            }
         }
         .alert("Error", isPresented: $viewModel.showError) {
             Button("OK") {}
@@ -129,7 +185,7 @@ struct ProfileView: View {
     }
 
     do {
-        // Load the raw Data from the user’s photo selection
+        // Load the raw Data from the user's photo selection
         let data = try await selectedImageItem.loadTransferable(type: Data.self)
         guard let data, let uiImage = UIImage(data: data) else {
             print("No valid image data found.")
@@ -166,9 +222,11 @@ struct StatView: View {
         VStack(spacing: 4) {
             Text(value)
                 .font(.headline)
+                .fontWeight(.semibold)
+                .foregroundColor(Color(red: 0.2, green: 0.2, blue: 0.3))
             Text(title)
                 .font(.caption)
-                .foregroundColor(.gray)
+                .foregroundColor(Color(red: 0.2, green: 0.2, blue: 0.3).opacity(0.7))
         }
         .frame(maxWidth: .infinity)
     }
