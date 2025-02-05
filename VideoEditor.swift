@@ -196,21 +196,42 @@ final class VideoEditor: @unchecked Sendable {
         print("🎬 Setting up preview for clip: \(clip.id)")
         print("📍 Video URL: \(clip.url)")
         
-        let asset = AVURLAsset(url: clip.url)
-        let playerItem = AVPlayerItem(asset: asset)
-        self.playerItem = playerItem
-        print("📼 Created player item")
+        // Create asset with options for better playback
+        let asset = AVURLAsset(
+            url: clip.url,
+            options: [AVURLAssetPreferPreciseDurationAndTimingKey: true]
+        )
         
+        // Create player item with automatic playback preference
+        let playerItem = AVPlayerItem(asset: asset)
+        playerItem.preferredForwardBufferDuration = 2
+        playerItem.automaticallyPreservesTimeOffsetFromLive = false
+        
+        // Configure player
         if player == nil {
             print("🆕 Creating new AVPlayer")
             player = AVPlayer(playerItem: playerItem)
+            player?.actionAtItemEnd = .pause // Ensure player pauses at end
+            player?.automaticallyWaitsToMinimizeStalling = true
+            player?.preventsDisplaySleepDuringVideoPlayback = true
         } else {
             print("🔄 Replacing existing player item")
             player?.replaceCurrentItem(with: playerItem)
         }
         
-        print("▶️ Starting playback")
-        player?.play()
+        // Ensure player starts in paused state at beginning
+        player?.seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero)
+        player?.pause()
+        
+        print("⏸️ Video loaded and paused at start")
+        
+        // Configure audio session
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback)
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            print("❌ Failed to configure audio session: \(error.localizedDescription)")
+        }
         
         // Add observer for player status
         if let player = player {
