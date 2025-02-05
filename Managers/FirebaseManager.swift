@@ -1,7 +1,7 @@
 import Foundation
 import FirebaseFirestore
 import Network
-
+import FirebaseStorage
 enum FirebaseError: Error {
     case networkError(String)
     case serverError(String)
@@ -103,6 +103,26 @@ class FirebaseManager {
         } catch let error as NSError {
             throw handleFirebaseError(error)
         }
+    }
+
+    func updateProfilePhoto(uid: String, image: UIImage) async throws -> URL {
+        guard let imageData = image.jpegData(compressionQuality: 0.8) else {
+            throw NSError(domain: "FirebaseManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "Unable to convert image to data"])
+        }
+
+        let storageRef = Storage.storage().reference().child("profile_images/\(uid).jpg")
+
+        _ = try await storageRef.putDataAsync(imageData, metadata: nil)
+
+        let downloadURL = try await storageRef.downloadURL()
+
+        try await db.collection("users")
+            .document(uid)
+            .setData([
+                "photoURL": downloadURL.absoluteString
+            ], merge: true)
+
+        return downloadURL
     }
 
     func fetchUserProfile(uid: String) async throws -> UserProfile {
