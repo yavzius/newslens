@@ -8,6 +8,7 @@
 import Foundation
 import SwiftUI
 import AVKit
+import FirebaseStorage
 
 // Model for a news video (or article) used in the TikTok-like feed.
 struct Article: Identifiable {
@@ -18,7 +19,28 @@ struct Article: Identifiable {
     let subheadline: String?    // Secondary title
     let description: String?    // Brief description (if needed)
     let readDuration: String?   // e.g., "5 min read"
-    let videoURL: URL?         // URL for the video content
+    let videoURL: String        // Firebase Storage URL
+    
+    // Get the download URL for the video
+    func getVideoDownloadURL(completion: @escaping (URL?) -> Void) {
+        let storage = Storage.storage()
+        let videoRef = storage.reference(forURL: videoURL)
+        
+        videoRef.downloadURL { url, error in
+            if let error = error {
+                print("❌ Error getting download URL: \(error.localizedDescription)")
+                completion(nil)
+                return
+            }
+            
+            if let downloadURL = url {
+                print("✅ Got download URL: \(downloadURL)")
+                completion(downloadURL)
+            } else {
+                completion(nil)
+            }
+        }
+    }
 }
 
 // Sample mock data based on top headlines.
@@ -30,17 +52,7 @@ let mockArticles: [Article] = [
         subheadline: "After Tariff Fight With Canada and Mexico, Trump's Next Target Is Europe",
         description: "President Trump said he would pause tariffs on Mexico for a month, but levies on Canada and China were still set to take effect on Tuesday.",
         readDuration: "5 min read",
-        videoURL: {
-            print("🎥 Loading video2 from asset catalog")
-            guard let dataAsset = NSDataAsset(name: "video2") else {
-                print("❌ Failed to load video2 from asset catalog")
-                return nil
-            }
-            print("✅ Successfully loaded video data: \(dataAsset.data.count) bytes")
-            let url = dataAsset.data.writeToTemporaryURL()
-            print("📍 Video URL created: \(String(describing: url))")
-            return url
-        }()
+        videoURL: "gs://nlbackend.firebasestorage.app/media/video2.mp4"
     ),
     Article(
         category: "LIVE",
@@ -49,17 +61,7 @@ let mockArticles: [Article] = [
         subheadline: nil,
         description: "Secretary of State Marco Rubio said he was the acting administrator of the U.S. Agency for International Development, which was targeted for closure by Elon Musk.",
         readDuration: nil,
-        videoURL: {
-            print("🎥 Loading video1 from asset catalog")
-            guard let dataAsset = NSDataAsset(name: "video1") else {
-                print("❌ Failed to load video1 from asset catalog")
-                return nil
-            }
-            print("✅ Successfully loaded video data: \(dataAsset.data.count) bytes")
-            let url = dataAsset.data.writeToTemporaryURL()
-            print("📍 Video URL created: \(String(describing: url))")
-            return url
-        }()
+        videoURL: "gs://nlbackend.firebasestorage.app/media/video1.mp4"
     )
 ]
 

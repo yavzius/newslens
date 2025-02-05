@@ -11,7 +11,7 @@ struct ContentView: View {
         // Otherwise, show the main logged-in view.
 //        if authManager.user == nil
         Group {
-            if !loggedIn {
+            if authManager.user == nil {
                 AuthView()
                     .environmentObject(authManager)
             } else {
