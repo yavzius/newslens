@@ -382,7 +382,7 @@ struct TrimHandle: View {
     let otherHandleTime: Double
     @State private var lastDragValue: CGFloat = 0
     
-    private let minDuration: Double = 1.0  // 1-second minimum duration like Apple's
+    private let minDuration: Double = 1.0 
     private let handleHeight: CGFloat = 60
     private let handleWidth: CGFloat = 44
     

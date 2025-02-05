@@ -224,19 +224,14 @@ struct FeedCell: View {
                                 .font(.caption)
                         }
                     }
-                    
-                    Button(action: {
-                        Task {
-                            await feedViewModel.sharePost(post)
-                        }
-                    }) {
-                        VStack(spacing: 4) {
-                            Image(systemName: "square.and.arrow.up")
-                                .font(.system(size: 30))
-                            Text("\(post.shares)")
-                                .font(.caption)
-                        }
-                    }
+                //     }
+                //     if let postID = post.id,
+                //    let url = URL(string: "https://newslens.com/posts/\(postID)") {
+                //     // Provide any items you'd like to share
+                //     ShareLink(items: [post.headline ?? "", url]) {
+                //             Label("Share", systemImage: "square.and.arrow.up")
+                //         }
+                //     }
                 }
                 .foregroundColor(.white)
                 .padding(.trailing)

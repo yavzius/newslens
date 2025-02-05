@@ -1,10 +1,3 @@
-//
-//  HomeView.swift
-//  newslens
-//
-//  Created by ga on 2/3/25.
-//
-
 import SwiftUI
 
 struct HomeView: View {

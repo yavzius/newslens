@@ -1,39 +1,4 @@
-//
-//  MainTabView.swift
-//  newslens
-//
-//  Created by ga on 2/3/25.
-//
-
 import SwiftUI
-
-
-struct SearchView: View {
-    var body: some View {
-        NavigationView {
-            Text("Search Page")
-                .navigationTitle("Search")
-        }
-    }
-}
-
-struct ProfileView: View {
-    var body: some View {
-        NavigationView {
-            Text("Profile Page")
-                .navigationTitle("Profile")
-        }
-    }
-}
-
-struct SettingsView: View {
-    var body: some View {
-        NavigationView {
-            Text("Settings / Brand Kit")
-                .navigationTitle("Settings")
-        }
-    }
-}
 
 struct MainTabView: View {
     @State private var isShowingNewContent = false
@@ -45,20 +10,12 @@ struct MainTabView: View {
                 .tabItem {
                     Label("Feed", systemImage: "house.fill")
                 }
-            SearchView()
-                .tabItem {
-                    Label("Search", systemImage: "magnifyingglass")
-                }
             ProfileView()
                 .tabItem {
                     Label("Profile", systemImage: "person.fill")
                 }
-            SettingsView()
-                .tabItem {
-                    Label("Settings", systemImage: "gearshape.fill")
-                }
+                .environmentObject(authManager)
         }
-        // Overlay a centered plus button above the tab bar.
         .overlay(
             VStack {
                 Spacer()
@@ -80,7 +37,6 @@ struct MainTabView: View {
                 }
             }
         )
-        // Present the New Content view full-screen (which will later integrate video creation).
         .fullScreenCover(isPresented: $isShowingNewContent) {
             NewContentView(isPresented: $isShowingNewContent)
         }

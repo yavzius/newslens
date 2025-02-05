@@ -35,6 +35,7 @@ class FeedViewModel: ObservableObject {
         guard let postId = post.id else { return }
         do {
             try await FirebaseManager.shared.incrementLikes(postId: postId)
+            await loadFeed()
         } catch {
             self.error = error
         }
