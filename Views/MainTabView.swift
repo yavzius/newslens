@@ -2,7 +2,7 @@ import SwiftUI
 
 struct MainTabView: View {
     @State private var isShowingNewContent = false
-
+    @EnvironmentObject var authManager: AuthManager
     var body: some View {
         TabView {
             FeedView()

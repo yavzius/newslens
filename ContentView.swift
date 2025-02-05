@@ -24,6 +24,7 @@ struct ContentView: View {
             } else {
                 // Show main UI
                 MainTabView()
+                    .environmentObject(authManager)
             }
         }
     }
