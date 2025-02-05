@@ -7,11 +7,8 @@ class AuthManager: ObservableObject {
     @Published var user: User? = nil
     private let storage = Storage.storage()
 
-    
-
     init() {
-                self.user = Auth.auth().currentUser
-
+        self.user = Auth.auth().currentUser
     }
 
     func signIn(email: String, password: String, completion: @escaping (Result<User, Error>) -> Void) {
@@ -58,8 +55,6 @@ class AuthManager: ObservableObject {
     func setupUserInFirestore(userId: String, displayName: String) async throws {
         try await FirebaseManager.shared.setupUserInFirestore(userId: userId, displayName: displayName)
     }
-    
-    // MARK: - Profile Management
     
     func updateProfile(displayName: String? = nil, photoURL: URL? = nil) async throws {
         let changeRequest = Auth.auth().currentUser?.createProfileChangeRequest()

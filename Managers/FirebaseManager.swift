@@ -104,6 +104,32 @@ class FirebaseManager {
             throw handleFirebaseError(error)
         }
     }
+
+    func fetchUserProfile(uid: String) async throws -> UserProfile {
+        let doc = try await db.collection("users")
+            .document(uid)
+            .getDocument()
+
+        guard let data = doc.data() else {
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "No user document found"])
+        }
+
+        // Use our init?(id:data:) to map the dictionary to a UserProfile
+        guard let profile = UserProfile(id: doc.documentID, data: data) else {
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid user data"])
+        }
+
+        return profile
+    }
+
+    func updateUserProfile(_ profile: UserProfile) async throws {
+        try await db.collection("users")
+            .document(profile.id)
+            .setData([
+                "displayName": profile.displayName
+                // Add other fields you want to update
+            ], merge: true)
+    }
     
     func fetchLikedPosts(userId: String) async throws -> [Post] {
         do {

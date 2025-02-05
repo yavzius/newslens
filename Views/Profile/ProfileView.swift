@@ -15,7 +15,7 @@ struct ProfileView: View {
     
     var body: some View {
         ScrollView {
-            VStack(spacing: 20) {
+            VStack(spacing: 40) {
                 // Profile Header
                 HStack(spacing: 16) {
                     // Profile Image
@@ -37,48 +37,49 @@ struct ProfileView: View {
                             .foregroundColor(.gray)
                     }
                     
-                    // User Info
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(authManager.user?.displayName ?? authManager.user?.email ?? "User")
+                        // Show displayName from profile
+                        Text(viewModel.profile?.displayName ?? "User")
                             .font(.headline)
-                        if authManager.user?.displayName != nil {
-                            Text(authManager.user?.email ?? "")
+
+                        // Show user’s email
+                        if let userEmail = authManager.user?.email {
+                            Text(userEmail)
                                 .font(.subheadline)
                                 .foregroundColor(.gray)
                         }
                     }
-                    
-                    Spacer()
+                    .padding(.horizontal)
                 }
-                .padding(.horizontal)
+
                 
                 // Stats View
                 HStack(spacing: 0) {
-                    StatView(value: "6", title: "My Rewards")
-                    StatView(value: "6/203", title: "Daily points")
-                    StatView(value: "0 days", title: "Daily streak")
+                    StatView(value: "6", title: "Following")
+                    StatView(value: "203", title: "Followers")
+                    StatView(value: "4", title: "Likes")
                 }
                 .padding(.vertical, 8)
                 .cornerRadius(10)
                 .padding(.horizontal)
                 
-                // Liked Posts Grid
-                if !viewModel.likedPosts.isEmpty {
-                    LazyVGrid(columns: gridItems, spacing: 1) {
-                        ForEach(viewModel.likedPosts) { post in
-                            PostGridItem(post: post)
-                                .frame(height: 120)
-                        }
-                    }
-                } else {
-                    Text("No liked posts yet")
-                        .foregroundColor(.gray)
-                        .padding(.top, 40)
-                }
+                // // Liked Posts Grid
+                // if !viewModel.likedPosts.isEmpty {
+                //     LazyVGrid(columns: gridItems, spacing: 1) {
+                //         ForEach(viewModel.likedPosts) { post in
+                //             PostGridItem(post: post)
+                //                 .frame(height: 120)
+                //         }
+                //     }
+                // } else {
+                //     Text("No liked posts yet")
+                //         .foregroundColor(.gray)
+                //         .padding(.top, 40)
+                // }
             }
         }
         .task {
-            await viewModel.fetchLikedPosts()
+            await viewModel.loadCurrentUserData()
         }
         .alert("Error", isPresented: $viewModel.showError) {
             Button("OK") {}
@@ -125,27 +126,38 @@ struct PostGridItem: View {
 
 @MainActor
 class ProfileViewModel: ObservableObject {
-    @Published var user: FirebaseAuth.User? = Auth.auth().currentUser
-    @Published var likedPosts: [Post] = []
-    @Published var showError = false
-    @Published var errorMessage = ""
-    
-    private let firebaseManager = FirebaseManager.shared
-    
-    func fetchLikedPosts() async {
-        guard let userId = user?.uid else { return }
-        
+    @Published var profile: UserProfile?
+    @Published var errorMessage: String = ""
+    @Published var showError: Bool = false
+
+    private let profileRepo: FirebaseManager
+
+    init(profileRepo: FirebaseManager = FirebaseManager.shared) {
+        self.profileRepo = profileRepo
+    }
+
+    func loadCurrentUserData() async {
+        guard let uid = Auth.auth().currentUser?.uid else {
+            profile = nil
+            return
+        }
+
         do {
-            self.likedPosts = try await firebaseManager.fetchLikedPosts(userId: userId)
-        } catch let error as FirebaseError {
+            let fetchedProfile = try await profileRepo.fetchUserProfile(uid: uid)
+            profile = fetchedProfile
+        } catch {
             showError = true
-            switch error {
-            case .networkError(let message),
-                 .serverError(let message),
-                 .cacheError(let message),
-                 .unknown(let message):
-                errorMessage = message
-            }
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func saveDisplayName(_ newName: String) async {
+        guard var existingProfile = profile else { return }
+        existingProfile = UserProfile(id: existingProfile.id, displayName: newName)
+
+        do {
+            try await profileRepo.updateUserProfile(existingProfile)
+            profile = existingProfile  // Update local model
         } catch {
             showError = true
             errorMessage = error.localizedDescription
@@ -157,4 +169,9 @@ struct ProfileView_Previews: PreviewProvider {
     static var previews: some View {
         ProfileView()
     }
+}
+
+#Preview {
+    ProfileView()
+        .environmentObject(AuthManager())
 }
