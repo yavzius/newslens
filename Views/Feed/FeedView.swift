@@ -21,10 +21,12 @@ struct FeedView: View {
                             await viewModel.loadFeed()
                         }
                     }
+                
                 }
             } else {
                 feedContent
             }
+            
         }
         .task {
             await viewModel.loadFeed()

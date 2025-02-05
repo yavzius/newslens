@@ -45,8 +45,8 @@ class FirebaseManager {
     func fetchPosts() async throws -> [Post] {
         do {
             let snapshot = try await db.collection("posts")
-                .order(by: "timestamp", descending: true)
                 .limit(to: 20)
+                .order(by: "created_at", descending: true)
                 .getDocuments(source: isOnline ? .default : .cache)
             
             return try snapshot.documents.compactMap { document in

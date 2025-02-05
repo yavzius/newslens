@@ -200,8 +200,8 @@ struct FeedCell: View {
             HStack(alignment: .bottom, spacing: 20) {
                 // Caption and user info
                 VStack(alignment: .leading, spacing: 8) {
-                    if let caption = post.caption {
-                        Text(caption)
+                    if let headline = post.headline {
+                        Text(headline)
                             .foregroundColor(.white)
                             .font(.system(size: 15))
                     }
@@ -378,8 +378,3 @@ struct CustomVideoPlayerView: UIViewControllerRepresentable {
     }
 }
 
-struct FeedCell_Previews: PreviewProvider {
-    static var previews: some View {
-            FeedCell(post: mockPosts.first!)
-    }
-}
