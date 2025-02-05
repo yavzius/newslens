@@ -2,13 +2,15 @@ import Foundation
 import FirebaseFirestore
 
 public struct Post: Identifiable, Codable {
-    @DocumentID var id: String?
+    public let id: String?
     let userId: String
     let videoURL: String
     let caption: String?
     let timestamp: Date
     let likes: Int
     let shares: Int
+    let headline: String?
+    let subtitle: String?
     
     public enum CodingKeys: String, CodingKey {
         case id
@@ -18,5 +20,7 @@ public struct Post: Identifiable, Codable {
         case timestamp
         case likes
         case shares
+        case headline
+        case subtitle
     }
 }

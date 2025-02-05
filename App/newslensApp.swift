@@ -12,21 +12,6 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         // Setup network monitoring
         setupNetworkMonitoring()
         
-        // Configure Firebase
-        if let filePath = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") {
-            print("GoogleService-Info.plist found at: \(filePath)")
-            FirebaseApp.configure()
-            
-            #if DEBUG
-            // Upload mock data in debug mode
-            MockDataUploader.uploadMockDataIfNeeded()
-            #endif
-        } else {
-            print("Error: GoogleService-Info.plist NOT found!")
-            // Handle missing configuration gracefully
-            return false
-        }
-        
         return true
     }
     

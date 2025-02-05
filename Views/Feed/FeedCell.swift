@@ -248,7 +248,7 @@ struct FeedCell: View {
     }
     
     private var headlineText: some View {
-        Text(post.headline)
+        Text(post.headline ?? "")
             .font(.title3)
             .foregroundColor(.white)
             .bold()
@@ -380,7 +380,6 @@ struct CustomVideoPlayerView: UIViewControllerRepresentable {
 
 struct FeedCell_Previews: PreviewProvider {
     static var previews: some View {
-        FeedCell(article: mockArticles.first!)
-            .previewInterfaceOrientation()
+            FeedCell(post: mockPosts.first!)
     }
 }

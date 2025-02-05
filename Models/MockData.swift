@@ -44,26 +44,31 @@ struct Article: Identifiable {
 }
 
 // Sample mock data based on top headlines.
-let mockArticles: [Article] = [
-    Article(
-        category: "LIVE",
-        timestamp: "Feb. 3, 2025, 3:31 p.m. ET Just now",
+let mockPosts: [Post] = [
+    Post(
+        id: nil,
+        userId: "JIAEfKQ0JvU1SM2aoKAfy0O9hg33",
+        videoURL: "gs://nlbackend.firebasestorage.app/media/video2.mp4",
+        caption: "Delaying Mexico Tariffs, Trump Takes Aggressive Posture With Canada",
+        timestamp: Date(),
+        likes: 100,
+        shares: 50,
         headline: "Delaying Mexico Tariffs, Trump Takes Aggressive Posture With Canada",
-        subheadline: "After Tariff Fight With Canada and Mexico, Trump's Next Target Is Europe",
-        description: "President Trump said he would pause tariffs on Mexico for a month, but levies on Canada and China were still set to take effect on Tuesday.",
-        readDuration: "5 min read",
-        videoURL: "gs://nlbackend.firebasestorage.app/media/video2.mp4"
+        subtitle: "After Tariff Fight With Canada and Mexico, Trump's Next Target Is Europe"
     ),
-    Article(
-        category: "LIVE",
-        timestamp: "Feb. 3, 2025, 3:28 p.m. ET 3m ago",
+    Post(
+        id: nil,
+        userId: "JIAEfKQ0JvU1SM2aoKAfy0O9hg33",
+        videoURL: "gs://nlbackend.firebasestorage.app/media/video1.mp4",
+        caption: "Democratic Lawmakers Join Protest Outside Shuttered U.S. Aid Agency",
+        timestamp: Date(),
+        likes: 200,
+        shares: 100,
         headline: "Democratic Lawmakers Join Protest Outside Shuttered U.S. Aid Agency",
-        subheadline: nil,
-        description: "Secretary of State Marco Rubio said he was the acting administrator of the U.S. Agency for International Development, which was targeted for closure by Elon Musk.",
-        readDuration: nil,
-        videoURL: "gs://nlbackend.firebasestorage.app/media/video1.mp4"
+        subtitle: "Secretary of State Marco Rubio said he was the acting administrator of the U.S. Agency for International Development, which was targeted for closure by Elon Musk."
     )
 ]
+
 
 // Helper extension to write data to a temporary URL
 extension Data {
