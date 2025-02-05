@@ -1,4 +1,6 @@
 import SwiftUI
+import FirebaseFirestore
+import Foundation
 import UIKit
 
 struct FeedView: View {

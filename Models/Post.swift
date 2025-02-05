@@ -1,7 +1,7 @@
 import Foundation
-import FirebaseFirestoreSwift
+import FirebaseFirestore
 
-struct Post: Identifiable, Codable {
+public struct Post: Identifiable, Codable {
     @DocumentID var id: String?
     let userId: String
     let videoURL: String
@@ -10,7 +10,7 @@ struct Post: Identifiable, Codable {
     let likes: Int
     let shares: Int
     
-    enum CodingKeys: String, CodingKey {
+    public enum CodingKeys: String, CodingKey {
         case id
         case userId = "user_id"
         case videoURL = "video_url"

@@ -2,6 +2,7 @@ import SwiftUI
 import AVKit
 import FirebaseStorage
 import Foundation
+import FirebaseFirestore
 
 // MARK: - Feed State Manager
 class FeedStateManager: ObservableObject {
@@ -39,7 +40,7 @@ class FeedCellViewModel: ObservableObject {
             print("✔️ Using cached video at: \(localURL)")
             let asset = AVURLAsset(url: localURL)
             Task {
-                await setupPlayerWithAsset(asset)
+                setupPlayerWithAsset(asset)
             }
             return
         }
@@ -247,7 +248,7 @@ struct FeedCell: View {
     }
     
     private var headlineText: some View {
-        Text(article.headline)
+        Text(post.headline)
             .font(.title3)
             .foregroundColor(.white)
             .bold()
@@ -265,7 +266,7 @@ struct FeedCell: View {
     private func setupVideoIfNeeded() {
         if viewModel.player == nil {
             Task {
-                await viewModel.setupVideo(storageURL: article.videoURL)
+                await viewModel.setupVideo(storageURL: post.videoURL)
             }
         }
     }
@@ -380,6 +381,6 @@ struct CustomVideoPlayerView: UIViewControllerRepresentable {
 struct FeedCell_Previews: PreviewProvider {
     static var previews: some View {
         FeedCell(article: mockArticles.first!)
-            .previewInterfaceOrientation(.portrait)
+            .previewInterfaceOrientation()
     }
 }
