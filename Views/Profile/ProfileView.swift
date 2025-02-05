@@ -105,6 +105,7 @@ struct ProfileView: View {
                 //         .padding(.top, 40)
                 // }
             }
+            .padding(.vertical, 20)
         }
         .task {
             await viewModel.loadCurrentUserData()
