@@ -257,3 +257,108 @@ extension FirebaseManager {
         try await userRef.setData(data, merge: true)
     }
 }
+
+// MARK: - Comment Model
+struct Comment: Codable, Identifiable {
+    let id: String
+    let postId: String
+    let userId: String
+    let content: String
+    let createdAt: Date
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case postId
+        case userId
+        case content
+        case createdAt = "created_at"
+    }
+}
+
+// MARK: - Comment Functions
+extension FirebaseManager {
+    /// Adds a new comment to a post
+    func addComment(postId: String, userId: String, content: String) async throws {
+        let commentData: [String: Any] = [
+            "postId": postId,
+            "userId": userId,
+            "content": content,
+            "created_at": FieldValue.serverTimestamp()
+        ]
+        
+        try await db.collection("comments").addDocument(data: commentData)
+    }
+    
+    /// Fetches all comments for a specific post
+    func fetchComments(for postId: String) async throws -> [Comment] {
+        let snapshot = try await db.collection("comments")
+            .whereField("postId", isEqualTo: postId)
+            .order(by: "created_at", descending: false)
+            .getDocuments()
+        
+        return try snapshot.documents.compactMap { document in
+            var commentData = document.data()
+            commentData["id"] = document.documentID
+            
+            // Handle the Timestamp conversion
+            if let timestamp = commentData["created_at"] as? Timestamp {
+                commentData["created_at"] = timestamp.dateValue()
+            }
+            
+            return try Firestore.Decoder().decode(Comment.self, from: commentData)
+        }
+    }
+    
+    /// Sets up a real-time listener for comments on a specific post
+    func listenForComments(
+        postId: String,
+        completion: @escaping (Result<[Comment], Error>) -> Void
+    ) -> ListenerRegistration {
+        return db.collection("comments")
+            .whereField("postId", isEqualTo: postId)
+            .order(by: "created_at", descending: false)
+            .addSnapshotListener { querySnapshot, error in
+                if let error = error {
+                    completion(.failure(error))
+                    return
+                }
+                
+                guard let documents = querySnapshot?.documents else {
+                    completion(.success([]))
+                    return
+                }
+                
+                do {
+                    let comments: [Comment] = try documents.compactMap { document in
+                        var commentData = document.data()
+                        commentData["id"] = document.documentID
+                        
+                        if let timestamp = commentData["created_at"] as? Timestamp {
+                            commentData["created_at"] = timestamp.dateValue()
+                        }
+                        
+                        return try Firestore.Decoder().decode(Comment.self, from: commentData)
+                    }
+                    completion(.success(comments))
+                } catch {
+                    completion(.failure(error))
+                }
+            }
+    }
+    
+    /// Fetches a user's profile data for displaying with comments
+    func fetchCommentUserProfile(userId: String) async throws -> (displayName: String, photoURL: String?) {
+        let document = try await db.collection("users")
+            .document(userId)
+            .getDocument()
+        
+        guard let data = document.data() else {
+            throw FirebaseError.cacheError("User profile not found")
+        }
+        
+        let displayName = data["displayName"] as? String ?? "Unknown User"
+        let photoURL = data["photoURL"] as? String
+        
+        return (displayName: displayName, photoURL: photoURL)
+    }
+}

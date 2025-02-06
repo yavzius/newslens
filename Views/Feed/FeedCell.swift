@@ -158,6 +158,7 @@ struct FeedCell: View {
     @State private var likeCount: Int = 0
     @State private var isLiked = false
     @State private var countListener: ListenerRegistration?
+    @State private var showComments = false
 
 
     
@@ -192,6 +193,9 @@ struct FeedCell: View {
                 } else {
                     viewModel.pause()
                 }
+            }
+            .sheet(isPresented: $showComments) {
+                CommentsView(post: post)
             }
         }
     }
@@ -239,6 +243,17 @@ struct FeedCell: View {
                                 .font(.system(size: 30))
                                 .foregroundColor(isLiked ? .red : .white)
                             Text("\(likeCount)")
+                                .font(.caption)
+                        }
+                    }
+                    
+                    Button(action: {
+                        showComments.toggle()
+                    }) {
+                        VStack(spacing: 4) {
+                            Image(systemName: "bubble.right.fill")
+                                .font(.system(size: 30))
+                            Text("Comments")
                                 .font(.caption)
                         }
                     }
