@@ -1,125 +1,84 @@
-# Atomic Steps to Implement TikTok-Style Comments in a Swift + Firebase App
+# Navigate from Liked Posts to Detailed Video View Implementation Plan
 
-## 1. Plan Your Data Structure
-- [x] Decide where to store comments
-  - Comments will be stored in a top-level "comments" collection in Firestore.
-  - Each comment will have postId, userId, content, and created_at.
-  - User profile data (photoURL, displayName) will be fetched separately.
+## Phase 1: Create DetailedPostView
+- [x] Create new file `Views/Feed/DetailedPostView.swift`
+- [x] Implement basic structure reusing `FeedCell` components
+- [x] Add navigation bar with back button
+- [x] Ensure video playback controls work in detailed view
+- [x] Handle video state management when navigating (pause/resume)
+- [x] Implement like/unlike functionality maintaining sync with `FeedCell`
 
-- [x] Understand how comments are retrieved
-  - To get all comments for a post, query Firestore using where postId = selectedPostId.
-  - To show real-time updates, listen for Firestore changes.
+## Phase 2: Update ProfileView Navigation
+- [x] Add `NavigationStack` to `ProfileView` if not present
+- [x] Modify liked posts list to use `NavigationLink`
+- [x] Update the liked post cell UI to be more engaging:
+  - [x] Add thumbnail/preview image
+  - [x] Add interaction feedback (tap state)
+  - [x] Add chevron or indicator for navigation
+- [x] Ensure proper data passing between views
 
-## 2. Create the Backend (FirebaseManager)
-### 2.1 Set Up Firestore Collection for Comments
-- [x] Create a "comments" collection in Firestore.
-- [x] Set up comment structure with:
-  - postId → Identifies which post this comment belongs to.
-  - userId → Identifies who posted the comment.
-  - content → The actual comment text.
-  - created_at → Timestamp of when the comment was created.
+## Phase 3: State Management & Data Sync
+- [ ] Implement proper state management for likes across views
+- [ ] Create shared view model or state object for like synchronization
+- [ ] Handle real-time updates for like status
+- [ ] Implement proper cleanup when leaving detailed view
+- [ ] Add loading states for smooth transitions
 
-#### Firestore Structure Example:
-```
-Firestore
- ├── posts
- │    ├── post1
- │    ├── post2
- │
- ├── comments
- │    ├── comment1 { postId: "post1", userId: "user123", content: "Nice!", created_at: TIMESTAMP }
- │    ├── comment2 { postId: "post1", userId: "user456", content: "Awesome!", created_at: TIMESTAMP }
- │
- ├── users
- │    ├── user123 { displayName: "John Doe", photoURL: "https://..." }
- │    ├── user456 { displayName: "Jane Smith", photoURL: "https://..." }
-```
+## Phase 4: UI/UX Enhancements
+- [ ] Add smooth transitions between views
+- [ ] Implement proper loading states
+- [ ] Add haptic feedback for interactions
+- [ ] Ensure video properly pauses when navigating away
+- [ ] Add pull-to-refresh for liked posts list
+- [ ] Handle error states gracefully
 
-### 2.2 Implement Firestore Functions
-- [x] Write functions to interact with Firestore:
-  #### Add a comment
-  - [x] Take userId, postId, content.
-  - [x] Save the comment to Firestore.
-  - [x] Use Firestore's serverTimestamp() to set created_at.
+## Phase 5: Testing & Edge Cases
+- [ ] Test navigation flow in both directions
+- [ ] Test like/unlike synchronization
+- [ ] Test video playback states
+- [ ] Test offline behavior
+- [ ] Test memory management
+- [ ] Test UI on different device sizes
 
-  #### Fetch comments for a post
-  - [x] Query Firestore where postId = selectedPostId.
-  - [x] Sort by created_at in ascending order.
+## Phase 6: Performance Optimization
+- [ ] Optimize video loading in detailed view
+- [ ] Implement proper caching strategy
+- [ ] Optimize transitions and animations
+- [ ] Profile and optimize memory usage
+- [ ] Implement proper cleanup for resources
 
-  #### Listen for real-time updates
-  - [x] Use Firestore's snapshot listener to update the UI whenever a new comment is added.
+## Phase 7: Polish & Final Touches
+- [ ] Add analytics tracking
+- [ ] Implement proper error handling and user feedback
+- [ ] Add loading indicators where needed
+- [ ] Ensure consistent styling with app theme
+- [ ] Add documentation for new components
 
-  #### Fetch user profile
-  - [x] Query Firestore using userId from the comment.
-  - [x] Retrieve displayName and photoURL.
+## Technical Considerations
 
-## 3. Build the Frontend (SwiftUI UI)
-### 3.1 Create a Comment ViewModel
-- [x] Create a ViewModel to manage comment-related logic:
-  - [x] Store the list of comments.
-  - [x] Fetch comments when the UI appears.
-  - [x] Listen for real-time updates (if enabled).
-  - [x] Handle posting new comments.
-  - [x] Manage user profiles for comments.
-  - [x] Handle error states.
+### Video Playback
+- [ ] Handle proper cleanup of `AVPlayer` instances
+- [ ] Manage active video state when navigating
+- [ ] Handle background/foreground transitions
 
-### 3.2 Design the Comment UI
-- [x] Display a "Comments" button in the Feed:
-  - [x] Add a button below the like button to open the comments section.
-  - [x] When tapped, show a bottom sheet (modal view).
+### Data Management
+- [ ] Ensure Firebase listeners are properly managed
+- [ ] Handle real-time updates efficiently
+- [ ] Implement proper error handling
 
-- [x] Inside the Bottom Sheet:
-  #### Show a list of comments
-  - [x] Fetch comments for the selected post.
-  - [x] Sort by created_at (oldest to newest).
-  - [x] Display each comment's text and user info.
+### State Sync
+- [ ] Maintain consistent like state across views
+- [ ] Handle concurrent updates properly
+- [ ] Implement proper state restoration
 
-  #### Display user profile picture
-  - [x] For each comment, fetch photoURL from Firestore.
-  - [x] Show a circular profile picture beside the comment.
+### Performance
+- [ ] Minimize memory usage
+- [ ] Optimize video loading
+- [ ] Handle large lists efficiently
 
-  #### Add a text field for new comments
-  - [x] Allow users to type a comment.
-  - [x] Show a "Send" button.
-  - [x] When tapped, call Firestore to save the comment.
-
-## 4. Connect the UI to Firestore
-### 4.1 Load Comments When the Bottom Sheet Opens
-- [x] When the user taps the "Comments" button:
-  - Open the bottom sheet.
-  - Fetch comments for the post.
-  - Display them in a list.
-  - Fetch and display each comment's user profile picture.
-  - If real-time updates are enabled, start a Firestore listener.
-
-### 4.2 Post a New Comment
-- [x] When the user types and presses "Send":
-  - Get the userId of the logged-in user.
-  - Get the postId of the post being commented on.
-  - Save the comment to Firestore.
-  - If using real-time updates, the UI will refresh automatically.
-  - If not, manually refresh the comments list.
-
-## 5. Test the System
-### Ensure Comments Work as Expected
-- [ ] Open a post and add a comment.
-- [ ] Check Firestore to see if the comment is saved correctly.
-- [ ] Verify that the comment appears in the app.
-- [ ] Close and reopen the app to ensure comments persist.
-
-### Test Real-Time Updates
-- [ ] Open the app on two devices.
-- [ ] Post a comment on one device.
-- [ ] Check if it appears on the second device without refreshing.
-
-### Check User Profile Fetching
-- [ ] Ensure profile pictures and display names load properly.
-- [ ] Change a user's profile picture and verify it updates in the comments section.
-
-## Final Checklist
-- [x] Firestore "comments" collection set up
-- [x] Firebase functions implemented (add, fetch, observe comments)
-- [x] SwiftUI UI for bottom sheet and comments list
-- [x] Profile pictures fetched dynamically
-- [x] New comments are added and displayed properly
-- [x] Real-time updates work as expected
+## Implementation Notes
+1. The implementation will reuse existing `FeedCell` components to maintain consistency
+2. Navigation will be handled through SwiftUI's native navigation system
+3. State management will ensure likes stay synchronized across all views
+4. Video playback will be optimized for smooth transitions
+5. Error handling and loading states will be implemented throughout

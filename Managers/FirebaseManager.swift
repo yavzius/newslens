@@ -381,3 +381,36 @@ extension FirebaseManager {
         )
     }
 }
+
+extension FirebaseManager {
+    // MARK: - Like Management
+    
+    func checkIfPostLiked(userId: String, postId: String) async throws -> Bool {
+        let query = db.collection("userLikes")
+            .whereField("userId", isEqualTo: userId)
+            .whereField("postId", isEqualTo: postId)
+            .limit(to: 1)
+        
+        let snapshot = try await query.getDocuments()
+        return !snapshot.isEmpty
+    }
+    
+    func observeLikeCount(postId: String, completion: @escaping (Result<Int, Error>) -> Void) -> ListenerRegistration {
+        let query = db.collection("userLikes")
+            .whereField("postId", isEqualTo: postId)
+        
+        return query.addSnapshotListener { snapshot, error in
+            if let error = error {
+                completion(.failure(error))
+                return
+            }
+            
+            guard let snapshot = snapshot else {
+                completion(.success(0))
+                return
+            }
+            
+            completion(.success(snapshot.documents.count))
+        }
+    }
+}

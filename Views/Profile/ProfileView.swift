@@ -3,9 +3,11 @@ import Firebase
 import FirebaseAuth
 import FirebaseFirestore
 import PhotosUI
+import AVKit
 
 struct ProfileView: View {
     @StateObject private var viewModel = ProfileViewModel()
+    @StateObject private var feedViewModel = FeedViewModel()
     @EnvironmentObject var authManager: AuthManager
     @State private var showPhotoPicker = false
     @State private var selectedImageItem: PhotosPickerItem?
@@ -25,140 +27,191 @@ struct ProfileView: View {
     ]
     
     var body: some View {
-        ScrollView {
-            VStack(spacing: 32) {
-                // Profile Header
-                VStack(spacing: 24) {
-                    // Profile Image
-                    ZStack {
-                        if let photoURL = authManager.user?.photoURL {
-                            AsyncImage(url: photoURL) { phase in
-                                switch phase {
-                                case .empty:
-                                    ProgressView()
-                                        .tint(Color(red: 0.2, green: 0.2, blue: 0.3))
-                                case .success(let image):
-                                    image
-                                        .resizable()
-                                        .scaledToFill()
-                                        .transition(.opacity.combined(with: .scale))
-                                case .failure(_):
-                                    Image(systemName: "person.circle.fill")
-                                        .resizable()
-                                        .scaledToFit()
-                                        .foregroundColor(Color(red: 0.2, green: 0.2, blue: 0.3))
-                                @unknown default:
-                                    EmptyView()
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 32) {
+                    // Profile Header
+                    VStack(spacing: 24) {
+                        // Profile Image
+                        ZStack {
+                            if let photoURL = authManager.user?.photoURL {
+                                AsyncImage(url: photoURL) { phase in
+                                    switch phase {
+                                    case .empty:
+                                        ProgressView()
+                                            .tint(Color(red: 0.2, green: 0.2, blue: 0.3))
+                                    case .success(let image):
+                                        image
+                                            .resizable()
+                                            .scaledToFill()
+                                            .transition(.opacity.combined(with: .scale))
+                                    case .failure(_):
+                                        Image(systemName: "person.circle.fill")
+                                            .resizable()
+                                            .scaledToFit()
+                                            .foregroundColor(Color(red: 0.2, green: 0.2, blue: 0.3))
+                                    @unknown default:
+                                        EmptyView()
+                                    }
                                 }
-                            }
-                            .frame(width: 100, height: 100)
-                            .clipShape(Circle())
-                            .overlay(
-                                Circle()
-                                    .stroke(Color(red: 0.2, green: 0.2, blue: 0.3).opacity(0.1), lineWidth: 1)
-                            )
-                            .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
-                        } else {
-                            Image(systemName: "person.circle.fill")
-                                .resizable()
-                                .scaledToFit()
                                 .frame(width: 100, height: 100)
-                                .foregroundColor(Color(red: 0.2, green: 0.2, blue: 0.3))
+                                .clipShape(Circle())
+                                .overlay(
+                                    Circle()
+                                        .stroke(Color(red: 0.2, green: 0.2, blue: 0.3).opacity(0.1), lineWidth: 1)
+                                )
+                                .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
+                            } else {
+                                Image(systemName: "person.circle.fill")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 100, height: 100)
+                                    .foregroundColor(Color(red: 0.2, green: 0.2, blue: 0.3))
+                            }
+                            
+                            // Show progress if uploading
+                            if isUploading {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.white.opacity(0.9))
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: Color(red: 0.2, green: 0.2, blue: 0.3)))
+                                }
+                                .transition(.opacity)
+                            }
+                        }
+                        .frame(width: 100, height: 100)
+                        .onTapGesture {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                showPhotoPicker = true
+                            }
                         }
                         
-                        // Show progress if uploading
-                        if isUploading {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.white.opacity(0.9))
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: Color(red: 0.2, green: 0.2, blue: 0.3)))
+                        VStack(spacing: 8) {
+                            // Show displayName from profile
+                            Text(viewModel.profile?.displayName ?? "User")
+                                .font(.title2)
+                                .fontWeight(.semibold)
+                                .foregroundColor(Color(red: 0.2, green: 0.2, blue: 0.3))
+
+                            // Show user's email
+                            if let userEmail = authManager.user?.email {
+                                Text(userEmail)
+                                    .font(.subheadline)
+                                    .foregroundColor(Color(red: 0.2, green: 0.2, blue: 0.3).opacity(0.7))
                             }
-                            .transition(.opacity)
                         }
                     }
-                    .frame(width: 100, height: 100)
-                    .onTapGesture {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                            showPhotoPicker = true
-                        }
+                    .offset(y: appearAnimation ? 0 : 30)
+                    .opacity(appearAnimation ? 1 : 0)
+        
+                    // Stats View
+                    HStack(spacing: 0) {
+                        StatView(value: "6", title: "Following")
+                        Divider()
+                            .frame(height: 24)
+                            .background(Color(red: 0.2, green: 0.2, blue: 0.3).opacity(0.1))
+                        StatView(value: "203", title: "Followers")
+                        Divider()
+                            .frame(height: 24)
+                            .background(Color(red: 0.2, green: 0.2, blue: 0.3).opacity(0.1))
+                        StatView(value: "4", title: "Likes")
                     }
-                    
-                    VStack(spacing: 8) {
-                        // Show displayName from profile
-                        Text(viewModel.profile?.displayName ?? "User")
-                            .font(.title2)
-                            .fontWeight(.semibold)
-                            .foregroundColor(Color(red: 0.2, green: 0.2, blue: 0.3))
+                    .padding(.vertical, 16)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color.white)
+                            .shadow(color: Color.black.opacity(0.05), radius: 15, x: 0, y: 5)
+                    )
+                    .padding(.horizontal)
+                    .offset(y: appearAnimation ? 0 : 20)
+                    .opacity(appearAnimation ? 1 : 0)
 
-                        // Show user's email
-                        if let userEmail = authManager.user?.email {
-                            Text(userEmail)
-                                .font(.subheadline)
-                                .foregroundColor(Color(red: 0.2, green: 0.2, blue: 0.3).opacity(0.7))
-                        }
-                    }
-                }
-                .offset(y: appearAnimation ? 0 : 30)
-                .opacity(appearAnimation ? 1 : 0)
-    
-                // Stats View
-                HStack(spacing: 0) {
-                    StatView(value: "6", title: "Following")
-                    Divider()
-                        .frame(height: 24)
-                        .background(Color(red: 0.2, green: 0.2, blue: 0.3).opacity(0.1))
-                    StatView(value: "203", title: "Followers")
-                    Divider()
-                        .frame(height: 24)
-                        .background(Color(red: 0.2, green: 0.2, blue: 0.3).opacity(0.1))
-                    StatView(value: "4", title: "Likes")
-                }
-                .padding(.vertical, 16)
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Color.white)
-                        .shadow(color: Color.black.opacity(0.05), radius: 15, x: 0, y: 5)
-                )
-                .padding(.horizontal)
-                .offset(y: appearAnimation ? 0 : 20)
-                .opacity(appearAnimation ? 1 : 0)
-
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Liked Posts")
-                        .font(.headline)
-                        .padding(.horizontal)
-                        .foregroundColor(Color(red: 0.2, green: 0.2, blue: 0.3))
-                    
-                    if viewModel.likedPosts.isEmpty {
-                        Text("You haven't liked anything yet.")
-                            .foregroundColor(.secondary)
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Liked Posts")
+                            .font(.headline)
                             .padding(.horizontal)
-                    } else {
-                        LazyVStack(spacing: 12) {
-                            ForEach(viewModel.likedPosts) { post in
-                                VStack(alignment: .leading) {
-                                    Text(post.headline ?? "Untitled")
-                                        .font(.subheadline)
-                                        .bold()
-                                        .foregroundColor(Color(red: 0.2, green: 0.2, blue: 0.3))
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding()
-                                .background(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(Color.white)
-                                        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
-                                )
+                            .foregroundColor(Color(red: 0.2, green: 0.2, blue: 0.3))
+                        
+                        if viewModel.likedPosts.isEmpty {
+                            Text("You haven't liked anything yet.")
+                                .foregroundColor(.secondary)
                                 .padding(.horizontal)
+                        } else {
+                            LazyVStack(spacing: 12) {
+                                ForEach(viewModel.likedPosts) { post in
+                                    NavigationLink(destination: DetailedPostView(post: post)
+                                        .environmentObject(feedViewModel)) {
+                                        HStack(spacing: 12) {
+                                            // Thumbnail
+                                            AsyncImage(url: URL(string: post.videoURL)) { phase in
+                                                switch phase {
+                                                case .empty:
+                                                    Rectangle()
+                                                        .fill(Color.gray.opacity(0.2))
+                                                        .frame(width: 80, height: 60)
+                                                        .cornerRadius(8)
+                                                case .success(let image):
+                                                    image
+                                                        .resizable()
+                                                        .aspectRatio(contentMode: .fill)
+                                                        .frame(width: 80, height: 60)
+                                                        .cornerRadius(8)
+                                                case .failure(_):
+                                                    Rectangle()
+                                                        .fill(Color.gray.opacity(0.2))
+                                                        .frame(width: 80, height: 60)
+                                                        .cornerRadius(8)
+                                                        .overlay(
+                                                            Image(systemName: "play.circle.fill")
+                                                                .foregroundColor(.gray)
+                                                        )
+                                                @unknown default:
+                                                    EmptyView()
+                                                }
+                                            }
+                                            
+                                            VStack(alignment: .leading, spacing: 4) {
+                                                Text(post.headline ?? "Untitled")
+                                                    .font(.subheadline)
+                                                    .bold()
+                                                    .foregroundColor(Color(red: 0.2, green: 0.2, blue: 0.3))
+                                                    .lineLimit(2)
+                                                
+                                                if let subtitle = post.subtitle {
+                                                    Text(subtitle)
+                                                        .font(.caption)
+                                                        .foregroundColor(.secondary)
+                                                        .lineLimit(1)
+                                                }
+                                            }
+                                            
+                                            Spacer()
+                                            
+                                            Image(systemName: "chevron.right")
+                                                .foregroundColor(.gray)
+                                                .font(.system(size: 14, weight: .semibold))
+                                        }
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .padding()
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .fill(Color.white)
+                                                .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+                                        )
+                                        .padding(.horizontal)
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
+                                    .contentShape(Rectangle())
+                                }
                             }
                         }
                     }
+                    .offset(y: appearAnimation ? 0 : 30)
+                    .opacity(appearAnimation ? 1 : 0)
                 }
-                .offset(y: appearAnimation ? 0 : 30)
-                .opacity(appearAnimation ? 1 : 0)
+                .padding(.vertical, 20)
             }
-            .padding(.vertical, 20)
         }
         .photosPicker(
             isPresented: $showPhotoPicker,
