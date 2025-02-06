@@ -25,13 +25,69 @@ class FeedCellViewModel: ObservableObject {
     @Published var isVideoReady = false
     @Published var isPlaying = false
     @Published var isLoading = true
+    @Published var isLiked = false
     private(set) var player: AVPlayer?
     private var observers = Set<NSKeyValueObservation>()
     private var playerItem: AVPlayerItem?
     private let articleID: UUID
+    private var post: Post?
     
     init(articleID: UUID) {
         self.articleID = articleID
+    }
+    
+    func updatePost(_ newPost: Post) {
+        self.post = newPost
+        // Update any relevant UI state based on the new post data
+        Task {
+            await updateLikeState()
+        }
+    }
+    
+    @MainActor
+    private func updateLikeState() async {
+        guard let post = post else { return }
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        
+        do {
+            isLiked = try await FirebaseManager.shared.checkIfPostLiked(userId: userId, postId: post.id ?? "")
+        } catch {
+            print("Error updating like state: \(error.localizedDescription)")
+        }
+    }
+    
+    func toggleLike() async {
+        guard let post = post else { return }
+        
+        if isLiked {
+            await unlikePost(post)
+        } else {
+            await likePost(post)
+        }
+    }
+    
+    private func likePost(_ post: Post) async {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        guard let postId = post.id else { return }
+        
+        do {
+            try await FirebaseManager.shared.likePostByUser(userId: userId, postId: postId)
+            await MainActor.run { isLiked = true }
+        } catch {
+            print("Error liking post: \(error.localizedDescription)")
+        }
+    }
+    
+    private func unlikePost(_ post: Post) async {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        guard let postId = post.id else { return }
+        
+        do {
+            try await FirebaseManager.shared.unlikePostByUser(userId: userId, postId: postId)
+            await MainActor.run { isLiked = false }
+        } catch {
+            print("Error unliking post: \(error.localizedDescription)")
+        }
     }
     
     @MainActor
@@ -156,7 +212,6 @@ struct FeedCell: View {
     }
 
     @State private var likeCount: Int = 0
-    @State private var isLiked = false
     @State private var countListener: ListenerRegistration?
     @State private var showComments = false
 
@@ -227,21 +282,13 @@ struct FeedCell: View {
                 VStack(spacing: 20) {
                     Button(action: {
                         Task {
-                            // If the user has already liked => unlike
-                            // otherwise => like
-                            if isLiked {
-                                await feedViewModel.unlikePost(post)
-                            } else {
-                                await feedViewModel.likePost(post)
-                            }
-                            // After toggling, re-check
-                            await checkIfUserLiked()
+                            await viewModel.toggleLike()
                         }
                     }) {
                         VStack(spacing: 4) {
                             Image(systemName: "heart.fill")
                                 .font(.system(size: 30))
-                                .foregroundColor(isLiked ? .red : .white)
+                                .foregroundColor(viewModel.isLiked ? .red : .white)
                             Text("\(likeCount)")
                                 .font(.caption)
                         }
@@ -421,7 +468,6 @@ extension FeedCell {
     private func checkIfUserLiked() async {
         guard let userId = Auth.auth().currentUser?.uid,
               let postId = post.id else {
-            isLiked = false
             return
         }
 
@@ -434,10 +480,9 @@ extension FeedCell {
 
             let snapshot = try await query.getDocuments()
             // If there's at least 1 doc => user has liked
-            isLiked = !snapshot.isEmpty
+            viewModel.isLiked = !snapshot.isEmpty
         } catch {
             print("Error checking if user liked post: \(error.localizedDescription)")
-            isLiked = false
         }
     }
 }

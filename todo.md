@@ -8,7 +8,7 @@
 - [x] Handle video state management when navigating (pause/resume)
 - [x] Implement like/unlike functionality maintaining sync with `FeedCell`
 
-## Phase 2: Update ProfileView Navigation
+## Phase 2: Update ProfileView Navigation 
 - [x] Add `NavigationStack` to `ProfileView` if not present
 - [x] Modify liked posts list to use `NavigationLink`
 - [x] Update the liked post cell UI to be more engaging:
@@ -18,11 +18,11 @@
 - [x] Ensure proper data passing between views
 
 ## Phase 3: State Management & Data Sync
-- [ ] Implement proper state management for likes across views
-- [ ] Create shared view model or state object for like synchronization
-- [ ] Handle real-time updates for like status
-- [ ] Implement proper cleanup when leaving detailed view
-- [ ] Add loading states for smooth transitions
+- [x] Implement proper state management for likes across views
+- [x] Create shared view model or state object for like synchronization
+- [x] Handle real-time updates for like status
+- [x] Implement proper cleanup when leaving detailed view
+- [x] Add loading states for smooth transitions
 
 ## Phase 4: UI/UX Enhancements
 - [ ] Add smooth transitions between views
@@ -62,14 +62,14 @@
 - [ ] Handle background/foreground transitions
 
 ### Data Management
-- [ ] Ensure Firebase listeners are properly managed
-- [ ] Handle real-time updates efficiently
-- [ ] Implement proper error handling
+- [x] Ensure Firebase listeners are properly managed
+- [x] Handle real-time updates efficiently
+- [x] Implement proper error handling
 
 ### State Sync
-- [ ] Maintain consistent like state across views
-- [ ] Handle concurrent updates properly
-- [ ] Implement proper state restoration
+- [x] Maintain consistent like state across views
+- [x] Handle concurrent updates properly
+- [x] Implement proper state restoration
 
 ### Performance
 - [ ] Minimize memory usage

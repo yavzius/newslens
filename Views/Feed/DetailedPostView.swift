@@ -45,9 +45,17 @@ struct DetailedPostView: View {
         .navigationBarHidden(true)
         .onAppear {
             setupVideo()
+            Task {
+                // Update initial like state
+                viewModel.isLiked = await feedViewModel.isPostLikedByCurrentUser(post)
+            }
         }
         .onDisappear {
             viewModel.cleanup()
+        }
+        .onChange(of: post) { newPost in
+            // Update view model when post changes due to real-time updates
+            viewModel.updatePost(newPost)
         }
     }
     
