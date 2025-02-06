@@ -4,7 +4,22 @@ import FirebaseStorage
 import Foundation
 import FirebaseFirestore
 import FirebaseAuth
+import UIKit
 
+// MARK: - Haptic Feedback Manager
+private enum HapticManager {
+    static func playLightImpact() {
+        let generator = UIImpactFeedbackGenerator(style: .light)
+        generator.prepare()
+        generator.impactOccurred()
+    }
+    
+    static func playMediumImpact() {
+        let generator = UIImpactFeedbackGenerator(style: .medium)
+        generator.prepare()
+        generator.impactOccurred()
+    }
+}
 
 // MARK: - Feed State Manager
 class FeedStateManager: ObservableObject {
@@ -27,13 +42,43 @@ class FeedCellViewModel: ObservableObject {
     @Published var isLoading = true
     @Published var isLiked = false
     private(set) var player: AVPlayer?
+    private(set) var postID: UUID
     private var observers = Set<NSKeyValueObservation>()
     private var playerItem: AVPlayerItem?
-    private let articleID: UUID
+    private var notificationObservers: [NSObjectProtocol] = []
     private var post: Post?
     
-    init(articleID: UUID) {
-        self.articleID = articleID
+    init(postID: UUID) {
+        self.postID = postID
+        setupNotificationObservers()
+    }
+    
+    private func setupNotificationObservers() {
+        // Observe pause notifications
+        let pauseObserver = NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("PauseVideo"),
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self = self,
+                  let videoID = notification.userInfo?["videoID"] as? UUID,
+                  videoID == self.postID else { return }
+            self.pause()
+        }
+        
+        // Observe play notifications
+        let playObserver = NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("PlayVideo"),
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self = self,
+                  let videoID = notification.userInfo?["videoID"] as? UUID,
+                  videoID == self.postID else { return }
+            self.play()
+        }
+        
+        notificationObservers = [pauseObserver, playObserver]
     }
     
     func updatePost(_ newPost: Post) {
@@ -93,7 +138,7 @@ class FeedCellViewModel: ObservableObject {
     @MainActor
     func setupVideo(storageURL: String) async {
         // 1) Check if file is cached
-        if let localURL = await Task.detached(operation: { await VideoCacheManager.shared.fileExists(for: self.articleID) }).value {
+        if let localURL = await Task.detached(operation: { await VideoCacheManager.shared.fileExists(for: self.postID) }).value {
             // Already cached; load from local file
             print("✔️ Using cached video at: \(localURL)")
             let asset = AVURLAsset(url: localURL)
@@ -111,7 +156,7 @@ class FeedCellViewModel: ObservableObject {
         Task {
             do {
                 let data = try await videoRef.data(maxSize: 50 * 1024 * 1024) // 50MB limit, adjust if needed
-                let cachedURL = try await VideoCacheManager.shared.cacheVideo(data: data, for: self.articleID)
+                let cachedURL = try await VideoCacheManager.shared.cacheVideo(data: data, for: self.postID)
                 print("✅ Downloaded & cached video at: \(cachedURL)")
                 
                 let asset = AVURLAsset(url: cachedURL)
@@ -185,11 +230,12 @@ class FeedCellViewModel: ObservableObject {
         pause()
         observers.forEach { $0.invalidate() }
         observers.removeAll()
+        notificationObservers.forEach { NotificationCenter.default.removeObserver($0) }
+        notificationObservers.removeAll()
         playerItem = nil
         player = nil
         isVideoReady = false
         isLoading = true
-        NotificationCenter.default.removeObserver(self)
     }
     
     deinit {
@@ -208,7 +254,7 @@ struct FeedCell: View {
     
     init(post: Post) {
         self.post = post
-        _viewModel = StateObject(wrappedValue: FeedCellViewModel(articleID: UUID(uuidString: post.id ?? "") ?? UUID()))
+        _viewModel = StateObject(wrappedValue: FeedCellViewModel(postID: UUID(uuidString: post.id ?? "") ?? UUID()))
     }
 
     @State private var likeCount: Int = 0
@@ -223,6 +269,10 @@ struct FeedCell: View {
                 if viewModel.isVideoReady {
                     CustomVideoPlayerView(viewModel: viewModel)
                         .edgesIgnoringSafeArea(.all)
+                        .onTapGesture {
+                            HapticManager.playLightImpact()
+                            viewModel.togglePlayback()
+                        }
                 } else {
                     loadingView
                 }
@@ -243,7 +293,19 @@ struct FeedCell: View {
                 viewModel.cleanup()
             }
             .onChange(of: scenePhase) { newPhase in
-                if newPhase == .active {
+                switch newPhase {
+                case .active:
+                    if feedState.activeVideoID == viewModel.postID {
+                        viewModel.play()
+                    }
+                case .background, .inactive:
+                    viewModel.pause()
+                @unknown default:
+                    break
+                }
+            }
+            .onChange(of: feedState.activeVideoID) { newID in
+                if newID == viewModel.postID {
                     viewModel.play()
                 } else {
                     viewModel.pause()

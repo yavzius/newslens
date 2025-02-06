@@ -3,16 +3,33 @@ import AVKit
 import FirebaseAuth
 import FirebaseFirestore
 
+// MARK: - Haptic Feedback Manager
+private enum HapticManager {
+    static func playLightImpact() {
+        let generator = UIImpactFeedbackGenerator(style: .light)
+        generator.prepare()
+        generator.impactOccurred()
+    }
+    
+    static func playMediumImpact() {
+        let generator = UIImpactFeedbackGenerator(style: .medium)
+        generator.prepare()
+        generator.impactOccurred()
+    }
+}
+
 struct DetailedPostView: View {
     let post: Post
     @StateObject private var viewModel: FeedCellViewModel
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var feedViewModel: FeedViewModel
+    @State private var isTransitioning = false
+    @State private var showLoadingOverlay = true
     
     // MARK: - Initialization
     init(post: Post) {
         self.post = post
-        _viewModel = StateObject(wrappedValue: FeedCellViewModel(articleID: UUID(uuidString: post.id ?? "") ?? UUID()))
+        _viewModel = StateObject(wrappedValue: FeedCellViewModel(postID: UUID(uuidString: post.id ?? "") ?? UUID()))
     }
     
     // MARK: - Body
@@ -23,6 +40,8 @@ struct DetailedPostView: View {
                 if viewModel.isVideoReady {
                     CustomVideoPlayerView(viewModel: viewModel)
                         .edgesIgnoringSafeArea(.all)
+                        .opacity(isTransitioning ? 0 : 1)
+                        .animation(.easeInOut(duration: 0.3), value: isTransitioning)
                 } else {
                     loadingView
                 }
@@ -38,6 +57,8 @@ struct DetailedPostView: View {
                     postInformation
                 }
                 .padding(.vertical)
+                .opacity(showLoadingOverlay ? 0 : 1)
+                .animation(.easeIn(duration: 0.3), value: showLoadingOverlay)
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
             .background(Color.black)
@@ -48,13 +69,18 @@ struct DetailedPostView: View {
             Task {
                 // Update initial like state
                 viewModel.isLiked = await feedViewModel.isPostLikedByCurrentUser(post)
+                // Delay the fade in of content
+                try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+                withAnimation {
+                    showLoadingOverlay = false
+                }
             }
         }
         .onDisappear {
+            isTransitioning = true
             viewModel.cleanup()
         }
         .onChange(of: post) { newPost in
-            // Update view model when post changes due to real-time updates
             viewModel.updatePost(newPost)
         }
     }
@@ -69,7 +95,15 @@ struct DetailedPostView: View {
     // MARK: - Navigation Bar
     private var navigationBar: some View {
         HStack {
-            Button(action: { dismiss() }) {
+            Button(action: {
+                HapticManager.playLightImpact()
+                withAnimation {
+                    isTransitioning = true
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    dismiss()
+                }
+            }) {
                 Image(systemName: "chevron.left")
                     .font(.title2)
                     .foregroundColor(.white)
@@ -89,6 +123,7 @@ struct DetailedPostView: View {
                     .font(.title3)
                     .foregroundColor(.white)
                     .padding(.horizontal)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
             
             // Subtitle
@@ -97,6 +132,7 @@ struct DetailedPostView: View {
                     .font(.subheadline)
                     .foregroundColor(.white.opacity(0.8))
                     .padding(.horizontal)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
             
             // Interaction Buttons
@@ -105,19 +141,21 @@ struct DetailedPostView: View {
                 
                 // Like Button
                 LikeButton(post: post, feedViewModel: feedViewModel)
+                    .transition(.scale.combined(with: .opacity))
                 
                 // Comments Button
                 CommentsButton(post: post)
+                    .transition(.scale.combined(with: .opacity))
                 
                 // Share Button
                 ShareButton(post: post)
+                    .transition(.scale.combined(with: .opacity))
             }
             .padding(.horizontal)
             .padding(.bottom, 30)
         }
     }
     
-    // MARK: - Helper Methods
     private func setupVideo() {
         if viewModel.player == nil {
             Task {
@@ -134,10 +172,16 @@ struct LikeButton: View {
     @State private var isLiked = false
     @State private var likeCount: Int = 0
     @State private var countListener: ListenerRegistration?
+    @State private var isAnimating = false
     private let firebaseManager = FirebaseManager.shared
     
     var body: some View {
         Button(action: {
+            HapticManager.playMediumImpact()
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                isAnimating = true
+            }
+            
             Task {
                 if isLiked {
                     await feedViewModel.unlikePost(post)
@@ -145,12 +189,17 @@ struct LikeButton: View {
                     await feedViewModel.likePost(post)
                 }
                 await checkIfUserLiked()
+                
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    isAnimating = false
+                }
             }
         }) {
             VStack(spacing: 4) {
                 Image(systemName: "heart.fill")
                     .font(.system(size: 30))
                     .foregroundColor(isLiked ? .red : .white)
+                    .scaleEffect(isAnimating ? 1.3 : 1.0)
                 Text("\(likeCount)")
                     .font(.caption)
                     .foregroundColor(.white)

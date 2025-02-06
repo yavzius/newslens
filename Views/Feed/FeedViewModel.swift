@@ -2,83 +2,87 @@ import SwiftUI
 import FirebaseFirestore
 import Foundation
 import FirebaseAuth
+
+// MARK: - Haptic Feedback Manager
+private enum HapticManager {
+    static func playLightImpact() {
+        let generator = UIImpactFeedbackGenerator(style: .light)
+        generator.prepare()
+        generator.impactOccurred()
+    }
+    
+    static func playMediumImpact() {
+        let generator = UIImpactFeedbackGenerator(style: .medium)
+        generator.prepare()
+        generator.impactOccurred()
+    }
+}
+
 @MainActor
 class FeedViewModel: ObservableObject {
     @Published var feedItems: [Post] = []
     @Published var isLoading = false
     @Published var error: Error?
     private var likeListeners: [String: ListenerRegistration] = [:]
+    private var activeVideoID: UUID?
     
     deinit {
-        // Create a local copy of listeners to remove them safely
-        let listenersToRemove = likeListeners
-        listenersToRemove.values.forEach { listener in
+        // Immediately remove listeners since this is thread-safe
+        likeListeners.values.forEach { listener in
             listener.remove()
         }
+        likeListeners.removeAll()
+        
+        // Handle main actor operations
+        if let activeID = activeVideoID {
+            // Post notification synchronously since NotificationCenter is thread-safe
+            NotificationCenter.default.post(
+                name: NSNotification.Name("PauseVideo"),
+                object: nil,
+                userInfo: ["videoID": activeID]
+            )
+        }
+        
+        // Clear state
+        activeVideoID = nil
     }
     
-    nonisolated private func removeAllListeners() {
-        // Since this is nonisolated, we need to be careful about thread safety
-        DispatchQueue.main.async { [weak self] in
-            self?.likeListeners.values.forEach { listener in
-                listener.remove()
-            }
-            self?.likeListeners.removeAll()
+    func setActiveVideo(_ id: UUID?) {
+        // Pause previous video if exists
+        if let previousID = activeVideoID, previousID != id {
+            NotificationCenter.default.post(
+                name: NSNotification.Name("PauseVideo"),
+                object: nil,
+                userInfo: ["videoID": previousID]
+            )
+        }
+        
+        activeVideoID = id
+        
+        // Play new video if exists
+        if let newID = id {
+            NotificationCenter.default.post(
+                name: NSNotification.Name("PlayVideo"),
+                object: nil,
+                userInfo: ["videoID": newID]
+            )
         }
     }
     
     func loadFeed() async {
         isLoading = true
+        error = nil
+        
         do {
-            feedItems = try await FirebaseManager.shared.fetchPosts()
-            setupLikeListeners()
+            let posts = try await FirebaseManager.shared.fetchPosts()
+            withAnimation {
+                self.feedItems = posts
+            }
         } catch {
             self.error = error
         }
-        isLoading = false
-    }
-    
-    private func setupLikeListeners() {
-        // Remove existing listeners
-        removeAllListeners()
         
-        // Setup new listeners for each post
-        for post in feedItems {
-            guard let postId = post.id else { continue }
-            
-            let listener = Firestore.firestore()
-                .collection("posts")
-                .document(postId)
-                .addSnapshotListener { [weak self] documentSnapshot, error in
-                    guard let document = documentSnapshot else {
-                        print("Error fetching document: \(error?.localizedDescription ?? "Unknown error")")
-                        return
-                    }
-                    
-                    guard let self = self,
-                          let updatedPost = try? document.data(as: Post.self) else { return }
-                    
-                    // Update the post in feedItems
-                    if let index = self.feedItems.firstIndex(where: { $0.id == postId }) {
-                        self.feedItems[index] = updatedPost
-                    }
-                }
-            
-            likeListeners[postId] = listener
-        }
-    }
-
-    func testFirestoreConnection() async {
-        do {
-            let db = Firestore.firestore()
-            let snapshot = try await db.collection("posts").getDocuments()
-            for document in snapshot.documents {
-                print("Document ID: \(document.documentID) => \(document.data())")
-            }
-            print("Successfully read from Firestore!")
-        } catch {
-            print("Error reading from Firestore: \(error.localizedDescription)")
-        }
+        isLoading = false
     }
     
     func likePost(_ post: Post) async {
@@ -87,9 +91,9 @@ class FeedViewModel: ObservableObject {
         
         do {
             try await FirebaseManager.shared.likePostByUser(userId: userId, postId: postId)
-            // No need to reload feed as the listener will handle the update
+            HapticManager.playMediumImpact()
         } catch {
-            self.error = error
+            print("Error liking post: \(error.localizedDescription)")
         }
     }
     
@@ -99,13 +103,12 @@ class FeedViewModel: ObservableObject {
         
         do {
             try await FirebaseManager.shared.unlikePostByUser(userId: userId, postId: postId)
-            // No need to reload feed as the listener will handle the update
+            HapticManager.playLightImpact()
         } catch {
-            self.error = error
+            print("Error unliking post: \(error.localizedDescription)")
         }
     }
     
-    // Helper method to check if a post is liked by current user
     func isPostLikedByCurrentUser(_ post: Post) async -> Bool {
         guard let userId = Auth.auth().currentUser?.uid,
               let postId = post.id else { return false }
@@ -113,8 +116,20 @@ class FeedViewModel: ObservableObject {
         do {
             return try await FirebaseManager.shared.checkIfPostLiked(userId: userId, postId: postId)
         } catch {
-            print("Error checking like status: \(error.localizedDescription)")
+            print("Error checking if post is liked: \(error.localizedDescription)")
             return false
         }
+    }
+    
+    func observeLikeCount(for postId: String, completion: @escaping (Result<Int, Error>) -> Void) {
+        // Remove existing listener if any
+        likeListeners[postId]?.remove()
+        
+        // Add new listener
+        let listener = FirebaseManager.shared.observeLikeCount(postId: postId) { result in
+            completion(result)
+        }
+        
+        likeListeners[postId] = listener
     }
 } 

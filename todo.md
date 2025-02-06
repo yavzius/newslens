@@ -25,14 +25,24 @@
 - [x] Add loading states for smooth transitions
 
 ## Phase 4: UI/UX Enhancements
-- [ ] Add smooth transitions between views
-- [ ] Implement proper loading states
-- [ ] Add haptic feedback for interactions
-- [ ] Ensure video properly pauses when navigating away
-- [ ] Add pull-to-refresh for liked posts list
-- [ ] Handle error states gracefully
+- [x] Add smooth transitions between views
+- [x] Implement proper loading states
+- [x] Add haptic feedback for interactions
+- [x] Ensure video properly pauses when navigating away
+- [x] Add pull-to-refresh for liked posts list
+- [x] Handle error states gracefully
 
-## Phase 5: Testing & Edge Cases
+## Phase 5: Feed Item Consistency
+- [ ] Create a shared FeedItem component to be used in both Feed and Profile views
+- [ ] Extract common functionality from FeedCell into the shared component
+- [ ] Implement a unified data fetching strategy for both views
+- [ ] Create a shared cache for post data to avoid duplicate network requests
+- [ ] Ensure real-time updates propagate to both Feed and Profile views
+- [ ] Add proper state management to keep both views in sync
+- [ ] Handle edge cases (deleted posts, permissions changes, etc.)
+- [ ] Test the consistency between Feed and Profile views
+
+## Phase 6: Testing & Edge Cases
 - [ ] Test navigation flow in both directions
 - [ ] Test like/unlike synchronization
 - [ ] Test video playback states
@@ -40,14 +50,14 @@
 - [ ] Test memory management
 - [ ] Test UI on different device sizes
 
-## Phase 6: Performance Optimization
+## Phase 7: Performance Optimization
 - [ ] Optimize video loading in detailed view
 - [ ] Implement proper caching strategy
 - [ ] Optimize transitions and animations
 - [ ] Profile and optimize memory usage
 - [ ] Implement proper cleanup for resources
 
-## Phase 7: Polish & Final Touches
+## Phase 8: Polish & Final Touches
 - [ ] Add analytics tracking
 - [ ] Implement proper error handling and user feedback
 - [ ] Add loading indicators where needed
@@ -82,3 +92,4 @@
 3. State management will ensure likes stay synchronized across all views
 4. Video playback will be optimized for smooth transitions
 5. Error handling and loading states will be implemented throughout
+6. Feed items will maintain consistency across all views using shared components and state
