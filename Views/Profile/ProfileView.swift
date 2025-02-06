@@ -123,6 +123,40 @@ struct ProfileView: View {
                 .padding(.horizontal)
                 .offset(y: appearAnimation ? 0 : 20)
                 .opacity(appearAnimation ? 1 : 0)
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Liked Posts")
+                        .font(.headline)
+                        .padding(.horizontal)
+                        .foregroundColor(Color(red: 0.2, green: 0.2, blue: 0.3))
+                    
+                    if viewModel.likedPosts.isEmpty {
+                        Text("You haven't liked anything yet.")
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal)
+                    } else {
+                        LazyVStack(spacing: 12) {
+                            ForEach(viewModel.likedPosts) { post in
+                                VStack(alignment: .leading) {
+                                    Text(post.headline ?? "Untitled")
+                                        .font(.subheadline)
+                                        .bold()
+                                        .foregroundColor(Color(red: 0.2, green: 0.2, blue: 0.3))
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding()
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(Color.white)
+                                        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
+                                )
+                                .padding(.horizontal)
+                            }
+                        }
+                    }
+                }
+                .offset(y: appearAnimation ? 0 : 30)
+                .opacity(appearAnimation ? 1 : 0)
             }
             .padding(.vertical, 20)
         }
@@ -162,6 +196,7 @@ struct ProfileView: View {
         )
         .task {
             await viewModel.loadCurrentUserData()
+            await viewModel.loadLikedPosts()
             withAnimation(.easeOut(duration: 0.6)) {
                 appearAnimation = true
             }
@@ -256,6 +291,7 @@ class ProfileViewModel: ObservableObject {
     @Published var profile: UserProfile?
     @Published var errorMessage: String = ""
     @Published var showError: Bool = false
+     @Published var likedPosts: [Post] = []
 
     private let profileRepo: FirebaseManager
 
@@ -273,8 +309,21 @@ class ProfileViewModel: ObservableObject {
             let fetchedProfile = try await profileRepo.fetchUserProfile(uid: uid)
             profile = fetchedProfile
         } catch {
-            showError = true
-            errorMessage = error.localizedDescription
+            self.errorMessage = error.localizedDescription
+            self.showError = true
+        }
+    }
+
+    func loadLikedPosts() async {
+        guard let uid = Auth.auth().currentUser?.uid else {
+            return
+        }
+        
+        do {
+            self.likedPosts = try await profileRepo.fetchLikedPosts(userId: uid)
+        } catch {
+            self.errorMessage = error.localizedDescription
+            self.showError = true
         }
     }
 

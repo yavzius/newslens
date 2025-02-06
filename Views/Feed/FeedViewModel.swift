@@ -59,12 +59,4 @@ class FeedViewModel: ObservableObject {
         }
     }
     
-    func sharePost(_ post: Post) async {
-        guard let postId = post.id else { return }
-        do {
-            try await FirebaseManager.shared.incrementShares(postId: postId)
-        } catch {
-            self.error = error
-        }
-    }
 } 

@@ -71,24 +71,6 @@ class FirebaseManager {
         }
     }
     
-    func incrementLikes(postId: String) async throws {
-        guard isOnline else {
-            throw FirebaseError.networkError("Cannot update likes while offline")
-        }
-        
-        let postRef = db.collection("posts").document(postId)
-        try await postRef.updateData([
-            "likes": FieldValue.increment(Int64(1))
-        ])
-    }
-    
-    func incrementShares(postId: String) async throws {
-        let postRef = db.collection("posts").document(postId)
-        try await postRef.updateData([
-            "shares": FieldValue.increment(Int64(1))
-        ])
-    }
-    
     func fetchUserData(userId: String) async throws -> [String: Any] {
         do {
             let document = try await db.collection("users")
@@ -152,20 +134,36 @@ class FirebaseManager {
     }
     
     func fetchLikedPosts(userId: String) async throws -> [Post] {
-        do {
-            let snapshot = try await db.collection("users")
-                .document(userId)
-                .collection("likedPosts")
-                .order(by: "created_at", descending: true)
-                .getDocuments(source: isOnline ? .default : .cache)
+    do {
+        // 1) Fetch all docs in userLikes for this user
+        let userLikesSnapshot = try await db.collection("userLikes")
+            .whereField("userId", isEqualTo: userId)
+            .getDocuments()
+
+        // Extract the postIds from the userLikes docs
+        let postIds = userLikesSnapshot.documents
+            .compactMap { $0["postId"] as? String }
+        
+        // 2) For each postId, fetch the Post from "posts" collection
+        var likedPosts: [Post] = []
+        
+        for postId in postIds {
+            let postDoc = try await db.collection("posts")
+                .document(postId)
+                .getDocument()
             
-            return try snapshot.documents.compactMap { document in
-                try document.data(as: Post.self)
+            if let postData = postDoc.data(),
+               let post = try? postDoc.data(as: Post.self) {
+                likedPosts.append(post)
             }
-        } catch let error as NSError {
-            throw handleFirebaseError(error)
         }
+        
+        return likedPosts
+    } catch let error as NSError {
+        // Use your existing error handling if you like
+        throw handleFirebaseError(error)
     }
+}
 
      func likePostByUser(userId: String, postId: String) async throws {
         // 1) Query for an existing doc where userId == userId AND postId == postId
