@@ -25,6 +25,9 @@ class FeedViewModel: ObservableObject {
     @Published var error: Error?
     private var likeListeners: [String: ListenerRegistration] = [:]
     private var activeVideoID: UUID?
+    private var cleanupTask: Task<Void, Never>?
+    
+    private let cacheManager = PostCacheManager.shared
     
     deinit {
         // Immediately remove listeners since this is thread-safe
@@ -45,6 +48,19 @@ class FeedViewModel: ObservableObject {
         
         // Clear state
         activeVideoID = nil
+        
+        // Create a cleanup task for main actor-isolated operations
+        cleanupTask = Task { @MainActor in
+            // Capture the posts that need cleanup
+            let postsToCleanup = feedItems
+            
+            // Clean up cache listeners
+            for post in postsToCleanup {
+                if let postId = post.id {
+                    cacheManager.stopListening(for: postId)
+                }
+            }
+        }
     }
     
     func setActiveVideo(_ id: UUID?) {
@@ -77,6 +93,14 @@ class FeedViewModel: ObservableObject {
             let posts = try await FirebaseManager.shared.fetchPosts()
             withAnimation {
                 self.feedItems = posts
+            }
+            
+            // Start listening for updates on each post
+            posts.forEach { post in
+                if let postId = post.id {
+                    cacheManager.startListening(for: postId)
+                    cacheManager.cachePost(post)
+                }
             }
         } catch {
             self.error = error
@@ -131,5 +155,9 @@ class FeedViewModel: ObservableObject {
         }
         
         likeListeners[postId] = listener
+    }
+    
+    func getPost(by id: String) -> Post? {
+        return cacheManager.getPost(id)
     }
 } 
