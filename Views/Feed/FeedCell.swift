@@ -3,6 +3,8 @@ import AVKit
 import FirebaseStorage
 import Foundation
 import FirebaseFirestore
+import FirebaseAuth
+
 
 // MARK: - Feed State Manager
 class FeedStateManager: ObservableObject {
@@ -147,10 +149,17 @@ struct FeedCell: View {
     @ObservedObject private var feedState = FeedStateManager.instance
     @EnvironmentObject private var feedViewModel: FeedViewModel
     
+    
     init(post: Post) {
         self.post = post
         _viewModel = StateObject(wrappedValue: FeedCellViewModel(articleID: UUID(uuidString: post.id ?? "") ?? UUID()))
     }
+
+    @State private var likeCount: Int = 0
+    @State private var isLiked = false
+    @State private var countListener: ListenerRegistration?
+
+
     
     var body: some View {
         GeometryReader { geometry in
@@ -214,24 +223,25 @@ struct FeedCell: View {
                 VStack(spacing: 20) {
                     Button(action: {
                         Task {
-                            await feedViewModel.likePost(post)
+                            // If the user has already liked => unlike
+                            // otherwise => like
+                            if isLiked {
+                                await feedViewModel.unlikePost(post)
+                            } else {
+                                await feedViewModel.likePost(post)
+                            }
+                            // After toggling, re-check
+                            await checkIfUserLiked()
                         }
                     }) {
                         VStack(spacing: 4) {
                             Image(systemName: "heart.fill")
                                 .font(.system(size: 30))
-                            Text("\(post.likes)")
+                                .foregroundColor(isLiked ? .red : .white)
+                            Text("\(likeCount)")
                                 .font(.caption)
                         }
                     }
-                //     }
-                //     if let postID = post.id,
-                //    let url = URL(string: "https://newslens.com/posts/\(postID)") {
-                //     // Provide any items you'd like to share
-                //     ShareLink(items: [post.headline ?? "", url]) {
-                //             Label("Share", systemImage: "square.and.arrow.up")
-                //         }
-                //     }
                 }
                 .foregroundColor(.white)
                 .padding(.trailing)
@@ -240,6 +250,22 @@ struct FeedCell: View {
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 100)
+        .onAppear {
+            Task {
+                await checkIfUserLiked()
+                observeLikeCount()  // optional if you want a live likeCount
+            }
+        }
+        .onDisappear {
+            // Remove any listeners if you attached them
+            countListener?.remove()
+            countListener = nil
+        }
+    }
+    
+    private func removeLikeCountListener() {
+        countListener?.remove()
+        countListener = nil
     }
     
     private var headlineText: some View {
@@ -373,3 +399,51 @@ struct CustomVideoPlayerView: UIViewControllerRepresentable {
     }
 }
 
+// MARK: - Check If User Liked
+extension FeedCell {
+    /// Checks userLikes to see if current user has a doc where postId == this post
+    @MainActor
+    private func checkIfUserLiked() async {
+        guard let userId = Auth.auth().currentUser?.uid,
+              let postId = post.id else {
+            isLiked = false
+            return
+        }
+
+        do {
+            let query = Firestore.firestore()
+                .collection("userLikes")
+                .whereField("userId", isEqualTo: userId)
+                .whereField("postId", isEqualTo: postId)
+                .limit(to: 1)
+
+            let snapshot = try await query.getDocuments()
+            // If there's at least 1 doc => user has liked
+            isLiked = !snapshot.isEmpty
+        } catch {
+            print("Error checking if user liked post: \(error.localizedDescription)")
+            isLiked = false
+        }
+    }
+}
+
+// MARK: - Observe Like Count (Optional)
+extension FeedCell {
+    private func observeLikeCount() {
+        guard let postId = post.id else { return }
+
+        // Query all docs in userLikes for this postId
+        let query = Firestore.firestore()
+            .collection("userLikes")
+            .whereField("postId", isEqualTo: postId)
+
+        // Attach a snapshot listener
+        countListener = query.addSnapshotListener { snapshot, error in
+            guard let snapshot = snapshot else {
+                print("Error fetching like docs: \(error?.localizedDescription ?? "")")
+                return
+            }
+            self.likeCount = snapshot.documents.count
+        }
+    }
+}

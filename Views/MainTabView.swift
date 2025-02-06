@@ -1,21 +1,33 @@
 import SwiftUI
 
 struct MainTabView: View {
+    init() {
+        // Configure tab bar appearance
+        let appearance = UITabBarAppearance()
+        appearance.configureWithOpaqueBackground()
+        appearance.backgroundColor = .white
+        
+        UITabBar.appearance().standardAppearance = appearance
+        
+        // For iOS 15 and later, also set the scrollEdgeAppearance
+        if #available(iOS 15.0, *) {
+            UITabBar.appearance().scrollEdgeAppearance = appearance
+        }
+    }
+    
     @State private var isShowingNewContent = false
     @EnvironmentObject var authManager: AuthManager
     var body: some View {
         TabView {
-            FeedView()
+            Tab("Feed", systemImage: "house.fill") {
+                FeedView()
                 .ignoresSafeArea(.container, edges: [.top])
-                .tabItem {
-                    Label("Feed", systemImage: "house.fill")
-                }
-            ProfileView()
-                .tabItem {
-                    Label("Profile", systemImage: "person.fill")
-                }
+            }
+            Tab("Profile", systemImage: "person.fill") {
+                ProfileView()
                 .environmentObject(authManager)
-        }
+                }
+            }
         .overlay(
             VStack {
                 Spacer()

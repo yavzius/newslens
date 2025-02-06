@@ -166,6 +166,43 @@ class FirebaseManager {
             throw handleFirebaseError(error)
         }
     }
+
+     func likePostByUser(userId: String, postId: String) async throws {
+        // 1) Query for an existing doc where userId == userId AND postId == postId
+        let query = db.collection("userLikes")
+            .whereField("userId", isEqualTo: userId)
+            .whereField("postId", isEqualTo: postId)
+            .limit(to: 1)
+        
+        let snapshot = try await query.getDocuments()
+        if !snapshot.isEmpty {
+            // Already liked
+            return
+        }
+        
+        // 2) Otherwise, create a new doc
+        // Optionally, generate your own doc ID like "\(userId)_\(postId)"
+        let docData: [String: Any] = [
+            "userId": userId,
+            "postId": postId,
+            "timestamp": FieldValue.serverTimestamp()
+        ]
+        
+        try await db.collection("userLikes").addDocument(data: docData)
+    }
+    
+    func unlikePostByUser(userId: String, postId: String) async throws {
+        let query = db.collection("userLikes")
+            .whereField("userId", isEqualTo: userId)
+            .whereField("postId", isEqualTo: postId)
+        
+        let snapshot = try await query.getDocuments()
+        
+        // Delete each doc found, typically it should only be one
+        for doc in snapshot.documents {
+            try await db.collection("userLikes").document(doc.documentID).delete()
+        }
+    }
     
     private func handleFirebaseError(_ error: NSError) -> FirebaseError {
         switch error.domain {

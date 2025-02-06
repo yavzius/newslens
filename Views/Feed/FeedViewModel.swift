@@ -1,7 +1,7 @@
 import SwiftUI
 import FirebaseFirestore
 import Foundation
-
+import FirebaseAuth
 @MainActor
 class FeedViewModel: ObservableObject {
     @Published var feedItems: [Post] = []
@@ -32,9 +32,27 @@ class FeedViewModel: ObservableObject {
     }
     
     func likePost(_ post: Post) async {
-        guard let postId = post.id else { return }
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        guard let postId = post.id else {
+            // Handle the case where post.id is nil
+            return
+        }
         do {
-            try await FirebaseManager.shared.incrementLikes(postId: postId)
+            try await FirebaseManager.shared.likePostByUser(userId: userId, postId: postId)
+            await loadFeed()
+        } catch {
+            self.error = error
+        }
+    }
+    
+    func unlikePost(_ post: Post) async {
+        guard let userId = Auth.auth().currentUser?.uid else { return }
+        guard let postId = post.id else {
+            // Handle the case where post.id is nil
+            return
+        }
+        do {
+            try await FirebaseManager.shared.unlikePostByUser(userId: userId, postId: postId)
             await loadFeed()
         } catch {
             self.error = error
