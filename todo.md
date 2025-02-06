@@ -64,28 +64,28 @@ Firestore
   - [x] Handle error states.
 
 ### 3.2 Design the Comment UI
-- [ ] Display a "Comments" button in the Feed:
-  - [ ] Add a button below the like button to open the comments section.
-  - [ ] When tapped, show a bottom sheet (modal view).
+- [x] Display a "Comments" button in the Feed:
+  - [x] Add a button below the like button to open the comments section.
+  - [x] When tapped, show a bottom sheet (modal view).
 
-- [ ] Inside the Bottom Sheet:
+- [x] Inside the Bottom Sheet:
   #### Show a list of comments
-  - [ ] Fetch comments for the selected post.
-  - [ ] Sort by created_at (oldest to newest).
-  - [ ] Display each comment's text and user info.
+  - [x] Fetch comments for the selected post.
+  - [x] Sort by created_at (oldest to newest).
+  - [x] Display each comment's text and user info.
 
   #### Display user profile picture
-  - [ ] For each comment, fetch photoURL from Firestore.
-  - [ ] Show a circular profile picture beside the comment.
+  - [x] For each comment, fetch photoURL from Firestore.
+  - [x] Show a circular profile picture beside the comment.
 
   #### Add a text field for new comments
-  - [ ] Allow users to type a comment.
-  - [ ] Show a "Send" button.
-  - [ ] When tapped, call Firestore to save the comment.
+  - [x] Allow users to type a comment.
+  - [x] Show a "Send" button.
+  - [x] When tapped, call Firestore to save the comment.
 
 ## 4. Connect the UI to Firestore
 ### 4.1 Load Comments When the Bottom Sheet Opens
-- [ ] When the user taps the "Comments" button:
+- [x] When the user taps the "Comments" button:
   - Open the bottom sheet.
   - Fetch comments for the post.
   - Display them in a list.
@@ -93,7 +93,7 @@ Firestore
   - If real-time updates are enabled, start a Firestore listener.
 
 ### 4.2 Post a New Comment
-- [ ] When the user types and presses "Send":
+- [x] When the user types and presses "Send":
   - Get the userId of the logged-in user.
   - Get the postId of the post being commented on.
   - Save the comment to Firestore.
@@ -117,9 +117,9 @@ Firestore
 - [ ] Change a user's profile picture and verify it updates in the comments section.
 
 ## Final Checklist
-- [ ] Firestore "comments" collection set up
-- [ ] Firebase functions implemented (add, fetch, observe comments)
-- [ ] SwiftUI UI for bottom sheet and comments list
-- [ ] Profile pictures fetched dynamically
-- [ ] New comments are added and displayed properly
-- [ ] Real-time updates work as expected
+- [x] Firestore "comments" collection set up
+- [x] Firebase functions implemented (add, fetch, observe comments)
+- [x] SwiftUI UI for bottom sheet and comments list
+- [x] Profile pictures fetched dynamically
+- [x] New comments are added and displayed properly
+- [x] Real-time updates work as expected

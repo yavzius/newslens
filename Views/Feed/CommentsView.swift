@@ -19,6 +19,10 @@ struct CommentsView: View {
                 List(viewModel.comments) { comment in
                     CommentRow(comment: comment, userProfile: viewModel.userProfiles[comment.userId])
                 }
+                .onAppear {
+                    print("DEBUG: Loading comments for post ID: \(post.id ?? "nil")")
+                    print("DEBUG: Current comments count: \(viewModel.comments.count)")
+                }
                 
                 // Comment input
                 HStack {
@@ -48,7 +52,12 @@ struct CommentsView: View {
             }
         }
         .onAppear {
-            viewModel.loadComments(for: post.id ?? "")
+            guard let postId = post.id else {
+                print("DEBUG: Error - Post ID is nil")
+                return
+            }
+            print("DEBUG: Starting to load comments for post: \(postId)")
+            viewModel.loadComments(for: postId)
         }
     }
 }

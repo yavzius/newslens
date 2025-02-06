@@ -279,6 +279,7 @@ struct Comment: Codable, Identifiable {
 extension FirebaseManager {
     /// Adds a new comment to a post
     func addComment(postId: String, userId: String, content: String) async throws {
+        print("DEBUG: Adding comment for postId: \(postId), userId: \(userId)")
         let commentData: [String: Any] = [
             "postId": postId,
             "userId": userId,
@@ -286,7 +287,13 @@ extension FirebaseManager {
             "created_at": FieldValue.serverTimestamp()
         ]
         
-        try await db.collection("comments").addDocument(data: commentData)
+        do {
+            let ref = try await db.collection("comments").addDocument(data: commentData)
+            print("DEBUG: Successfully added comment with ID: \(ref.documentID)")
+        } catch {
+            print("DEBUG: Error adding comment: \(error.localizedDescription)")
+            throw error
+        }
     }
     
     /// Fetches all comments for a specific post
@@ -314,35 +321,47 @@ extension FirebaseManager {
         postId: String,
         completion: @escaping (Result<[Comment], Error>) -> Void
     ) -> ListenerRegistration {
+        print("DEBUG: Setting up comment listener for postId: \(postId)")
+        
         return db.collection("comments")
             .whereField("postId", isEqualTo: postId)
             .order(by: "created_at", descending: false)
-            .addSnapshotListener { querySnapshot, error in
+            .addSnapshotListener { snapshot, error in
                 if let error = error {
+                    print("DEBUG: Error listening for comments: \(error.localizedDescription)")
                     completion(.failure(error))
                     return
                 }
                 
-                guard let documents = querySnapshot?.documents else {
+                guard let documents = snapshot?.documents else {
+                    print("DEBUG: No documents in comment snapshot")
                     completion(.success([]))
                     return
                 }
                 
-                do {
-                    let comments: [Comment] = try documents.compactMap { document in
-                        var commentData = document.data()
-                        commentData["id"] = document.documentID
-                        
-                        if let timestamp = commentData["created_at"] as? Timestamp {
-                            commentData["created_at"] = timestamp.dateValue()
-                        }
-                        
-                        return try Firestore.Decoder().decode(Comment.self, from: commentData)
+                print("DEBUG: Received \(documents.count) comment documents")
+                let comments = documents.compactMap { document -> Comment? in
+                    let data = document.data()
+                    
+                    guard let postId = data["postId"] as? String,
+                          let userId = data["userId"] as? String,
+                          let content = data["content"] as? String,
+                          let timestamp = data["created_at"] as? Timestamp else {
+                        print("DEBUG: Missing required fields in comment data: \(data)")
+                        return nil
                     }
-                    completion(.success(comments))
-                } catch {
-                    completion(.failure(error))
+                    
+                    return Comment(
+                        id: document.documentID,
+                        postId: postId,
+                        userId: userId,
+                        content: content,
+                        createdAt: timestamp.dateValue()
+                    )
                 }
+                
+                print("DEBUG: Successfully decoded \(comments.count) comments")
+                completion(.success(comments))
             }
     }
     
@@ -356,9 +375,9 @@ extension FirebaseManager {
             throw FirebaseError.cacheError("User profile not found")
         }
         
-        let displayName = data["displayName"] as? String ?? "Unknown User"
-        let photoURL = data["photoURL"] as? String
-        
-        return (displayName: displayName, photoURL: photoURL)
+        return (
+            displayName: data["displayName"] as? String ?? "Unknown User",
+            photoURL: data["photoURL"] as? String
+        )
     }
 }
